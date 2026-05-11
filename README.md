@@ -73,7 +73,7 @@ DB_PASSWORD=suasenhadobanco     # Defina uma senha segura
 # ===== WhatsApp (Evolution API) =====
 EVOLUTION_API_KEY=suachaveglobal  # Uma chave de segurança de sua escolha
 EVOLUTION_INSTANCE_NAME=financasponto
-WHATSAPP_PHONE=5524999856230    # Seu número com DDI e DDD (ex: 55 + DDD + Número)
+WHATSAPP_PHONE=5524999999999    # Seu número com DDI e DDD (ex: 55 + DDD + Número)
 
 # ===== Gmail =====
 GMAIL_USER=seuemail@gmail.com   # O e-mail que receberá os alertas de ponto

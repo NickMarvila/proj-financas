@@ -29,7 +29,7 @@ server:
 # Gmail
 app:
   gmail:
-    user: ${GMAIL_USER:nickmarvila@gmail.com}
+    user: ${GMAIL_USER}
     credentials-path: ${CREDENTIALS_PATH:/app/credentials/credentials.json}
     tokens-dir: ${TOKENS_DIR:/app/tokens}
     poll-sender: eventos@pmovel.com.br
@@ -39,7 +39,7 @@ app:
     api-url: ${EVOLUTION_API_URL:http://localhost:8081}
     api-key: ${EVOLUTION_API_KEY:financas-secret-key}
     instance: ${EVOLUTION_INSTANCE_NAME:financasponto}
-    phone: ${WHATSAPP_PHONE:5524999856230}
+    phone: ${WHATSAPP_PHONE}
 
   # Regras de trabalho
   work:

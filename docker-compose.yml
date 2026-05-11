@@ -62,8 +62,8 @@ services:
       EVOLUTION_API_URL: http://evolution-api:8080
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-financas-secret-key}
       EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-financasponto}
-      WHATSAPP_PHONE: ${WHATSAPP_PHONE:-5524999856230}
-      GMAIL_USER: ${GMAIL_USER:-nickmarvila@gmail.com}
+      WHATSAPP_PHONE: ${WHATSAPP_PHONE}
+      GMAIL_USER: ${GMAIL_USER}
       TOKENS_DIR: /app/tokens
       CREDENTIALS_PATH: /app/credentials/credentials.json
     volumes:
