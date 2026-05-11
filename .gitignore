@@ -1,0 +1,39 @@
+# === Ambiente e Configurações de Máquina ===
+.env
+*.env
+client_secret*.json
+
+# === Credenciais e Autenticações (MUITO SENSÍVEL) ===
+/gmail-credentials/credentials.json
+/gmail-tokens/
+gmail-tokens/StoredCredential
+
+# === Arquivos Temporários e de Pedidos ===
+pedido.txt
+scratch_create.json
+
+# === IntelliJ / VS Code ===
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# === Java / Maven (Backend) ===
+backend/target/
+backend/*.class
+backend/.classpath
+backend/.project
+backend/.settings/
+
+# === Node / React (Frontend) ===
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.eslintcache
+frontend/yarn-error.log
+frontend/npm-debug.log*
+
+# === Sistema Operacional ===
+Thumbs.db
+.DS_Store

@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: financas-ponto
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/financasponto}
+    username: ${SPRING_DATASOURCE_USERNAME:financas}
+    password: ${SPRING_DATASOURCE_PASSWORD:financas123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: America/Sao_Paulo
+
+server:
+  port: 8080
+
+# Gmail
+app:
+  gmail:
+    user: ${GMAIL_USER:nickmarvila@gmail.com}
+    credentials-path: ${CREDENTIALS_PATH:/app/credentials/credentials.json}
+    tokens-dir: ${TOKENS_DIR:/app/tokens}
+    poll-sender: eventos@pmovel.com.br
+
+  # WhatsApp / Evolution API
+  whatsapp:
+    api-url: ${EVOLUTION_API_URL:http://localhost:8081}
+    api-key: ${EVOLUTION_API_KEY:financas-secret-key}
+    instance: ${EVOLUTION_INSTANCE_NAME:financasponto}
+    phone: ${WHATSAPP_PHONE:5524999856230}
+
+  # Regras de trabalho
+  work:
+    start-time: "08:00"
+    end-time: "18:00"
+    lunch-break-hours: 2
+    daily-contract-hours: 8
+    saturday-contract-hours: 4
+    overtime-rate: 0.50
+    monthly-divisor: 220
+
+logging:
+  level:
+    com.financasponto: INFO
+    org.springframework.security: WARN
