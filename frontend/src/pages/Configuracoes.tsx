@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { gmailApi, whatsAppApi } from '../api/client';
 import type { GmailStatus } from '../types';
-import axios from 'axios';
 
 export default function Configuracoes() {
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
@@ -31,8 +30,8 @@ export default function Configuracoes() {
   const getGmailAuthUrl = async () => {
     setAuthLoading(true);
     try {
-      const r = await axios.get<{ authUrl: string }>('/api/gmail/auth');
-      setAuthUrl(r.data.authUrl);
+      const r = await gmailApi.getAuthUrl();
+      setAuthUrl(r.authUrl);
     } finally {
       setAuthLoading(false);
     }
@@ -42,9 +41,9 @@ export default function Configuracoes() {
     if (!authCode.trim()) return;
     setAuthLoading(true);
     try {
-      const r = await axios.post<{ success: boolean }>('/api/gmail/code', { code: authCode });
-      setAuthSuccess(r.data.success);
-      if (r.data.success) { setAuthUrl(''); setAuthCode(''); await loadStatus(); }
+      const r = await gmailApi.submitCode(authCode);
+      setAuthSuccess(r.success);
+      if (r.success) { setAuthUrl(''); setAuthCode(''); await loadStatus(); }
     } finally {
       setAuthLoading(false);
     }

@@ -6,6 +6,17 @@ import type {
 
 const api = axios.create({ baseURL: '/api' });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export const authApi = {
+  login: (data: any) => api.post('/auth/login', data).then(r => r.data),
+};
 export const dashboardApi = {
   get: (year?: number, month?: number) => {
     const params = new URLSearchParams();
@@ -57,4 +68,6 @@ export const gmailApi = {
   getStatus: () => api.get<GmailStatus>('/gmail/status').then(r => r.data),
   sync: () => api.post<{ processed: number }>('/gmail/sync').then(r => r.data),
   syncHistory: () => api.post<{ processed: number }>('/gmail/sync-history').then(r => r.data),
+  getAuthUrl: () => api.get<{ authUrl: string }>('/gmail/auth').then(r => r.data),
+  submitCode: (code: string) => api.post<{ success: boolean }>('/gmail/code', { code }).then(r => r.data),
 };

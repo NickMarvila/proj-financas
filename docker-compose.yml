@@ -74,6 +74,13 @@ services:
         condition: service_healthy
       evolution-api:
         condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.financas-backend.rule=Host(`api.ponto.localhost`)"
+      - "traefik.http.services.financas-backend.loadbalancer.server.port=8080"
+    networks:
+      - web
+      - default
 
   frontend:
     build:
@@ -85,8 +92,19 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.financas-frontend.rule=Host(`ponto.localhost`)"
+      - "traefik.http.services.financas-frontend.loadbalancer.server.port=80"
+    networks:
+      - web
+      - default
 
 volumes:
   postgres_data:
   evolution_instances:
   evolution_store:
+
+networks:
+  web:
+    external: true
