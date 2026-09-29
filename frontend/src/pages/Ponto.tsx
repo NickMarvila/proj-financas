@@ -4,11 +4,11 @@ import { workDayApi, timeRecordApi } from '../api/client';
 import type { WorkDay, TimeRecord } from '../types';
 import { formatMinutes, formatCurrency, formatDate, formatTime, MONTH_NAMES } from '../utils/format';
 
-const STATUS_MAP = {
+const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   NORMAL: { label: 'Normal', cls: 'badge-green' },
   OVERTIME: { label: 'Hora Extra', cls: 'badge-amber' },
   INCOMPLETE: { label: 'Incompleto', cls: 'badge-red' },
-  DAY_OFF: { label: 'Sábado Livre', cls: 'badge-muted' },
+  DAY_OFF: { label: 'Sáb Livre', cls: 'badge-muted' },
   ABSENT: { label: 'Falta', cls: 'badge-red' },
 };
 
@@ -76,7 +76,7 @@ export default function Ponto() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title">Registros de Ponto</h1>
           <p className="page-subtitle">Histórico de batidas e horas trabalhadas</p>
@@ -91,7 +91,7 @@ export default function Ponto() {
       </div>
 
       {/* Resumo do mês */}
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 28 }}>
+      <div className="stats-grid" style={{ marginBottom: 28 }}>
         <div className="stat-card purple">
           <div className="stat-icon" style={{ background: 'var(--accent-purple-dim)', color: 'var(--accent-purple-light)' }}>⏱</div>
           <div className="stat-label">Total Trabalhado</div>
@@ -111,39 +111,61 @@ export default function Ponto() {
       </div>
 
       <div className="grid-2">
-        {/* Tabela de dias */}
+        {/* Lista de dias */}
         <div className="card">
           <div className="section-title"><span className="dot" />Dias do mês</div>
           {loading ? <div className="loading-page" style={{ minHeight: 200 }}><div className="loading-spinner" /></div> : (
             workDays.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🗓️</div><p>Nenhum registro neste mês</p></div>
             ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead><tr>
-                    <th>Data</th><th>Trabalhado</th><th>Extra</th><th>Valor</th><th>Status</th>
-                  </tr></thead>
-                  <tbody>
-                    {workDays.map(w => {
-                      const s = STATUS_MAP[w.status] ?? STATUS_MAP.NORMAL;
-                      const isUnworkedSaturday = w.isSaturday && (w.workedMinutes === 0 || w.status === 'ABSENT' || w.status === 'DAY_OFF');
-                      return (
-                        <tr key={w.id} onClick={() => setSelectedDay(w)} style={{ cursor: 'pointer', backgroundColor: w.isSaturday ? 'rgba(251,191,36,0.03)' : 'transparent' }}>
-                          <td style={{ fontWeight: 500, paddingLeft: '10px' }}>
-                            <span style={{ color: w.isSaturday ? '#fbbf24' : 'inherit' }}>{formatDate(w.date)}</span>
-                            {w.isSaturday && <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: 4, fontWeight: 700 }}>SÁB</span>}
-                          </td>
-                          <td>{formatMinutes(w.workedMinutes)}</td>
-                          <td style={{ color: (w.overtimeMinutes ?? 0) > 0 ? 'var(--accent-amber)' : isUnworkedSaturday ? 'var(--accent-red)' : 'var(--text-muted)', fontWeight: 600 }}>
-                            {(w.overtimeMinutes ?? 0) > 0 ? `+${formatMinutes(w.overtimeMinutes)}` : isUnworkedSaturday ? '-4h' : '--'}
-                          </td>
-                          <td style={{ color: 'var(--accent-green)' }}>{isUnworkedSaturday ? '--' : formatCurrency(w.overtimeValue)}</td>
-                          <td><span className={`badge ${isUnworkedSaturday ? 'badge-red' : s.cls}`}>{isUnworkedSaturday ? 'Falta' : s.label}</span></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {workDays.map(w => {
+                  const s = STATUS_MAP[w.status] ?? STATUS_MAP.NORMAL;
+                  const isUnworkedSaturday = w.isSaturday && (w.workedMinutes === 0 || w.status === 'ABSENT' || w.status === 'DAY_OFF');
+                  const isSelected = selectedDay?.id === w.id;
+                  return (
+                    <div
+                      key={w.id}
+                      onClick={() => setSelectedDay(w)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        background: isSelected ? 'rgba(16,185,129,0.08)' : w.isSaturday ? 'rgba(251,191,36,0.03)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${isSelected ? 'rgba(16,185,129,0.3)' : 'var(--border)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      {/* Left: Date + Status badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: w.isSaturday ? '#fbbf24' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            {formatDate(w.date)}
+                            {w.isSaturday && <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 5px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: 3, fontWeight: 700, verticalAlign: 'middle' }}>SÁB</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {formatMinutes(w.workedMinutes)} trabalhadas
+                          </div>
+                        </div>
+                      </div>
+                      {/* Right: Extra + Status */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: 13, fontWeight: 700,
+                          color: (w.overtimeMinutes ?? 0) > 0 ? 'var(--accent-amber)' : isUnworkedSaturday ? 'var(--accent-red)' : 'var(--text-muted)'
+                        }}>
+                          {(w.overtimeMinutes ?? 0) > 0 ? `+${formatMinutes(w.overtimeMinutes)}` : isUnworkedSaturday ? '-4h' : '--'}
+                        </span>
+                        <span className={`badge ${isUnworkedSaturday ? 'badge-red' : s.cls}`} style={{ fontSize: 10 }}>
+                          {isUnworkedSaturday ? 'Falta' : s.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )
           )}
@@ -173,7 +195,7 @@ export default function Ponto() {
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: 20, padding: '14px 0', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ marginTop: 20, padding: '14px 0', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Hora extra do dia</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-amber)' }}>
                   {formatMinutes(selectedDay.overtimeMinutes)} = {formatCurrency(selectedDay.overtimeValue)}

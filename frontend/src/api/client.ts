@@ -14,6 +14,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Auto-logout on 401 (token expirado ou backend reiniciado)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/')) {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data).then(r => r.data),
 };
@@ -67,7 +79,7 @@ export const whatsAppApi = {
 export const gmailApi = {
   getStatus: () => api.get<GmailStatus>('/gmail/status').then(r => r.data),
   sync: () => api.post<{ processed: number }>('/gmail/sync').then(r => r.data),
-  syncHistory: () => api.post<{ processed: number }>('/gmail/sync-history').then(r => r.data),
+  syncHistory: (afterDate?: string) => api.post<{ processed: number }>('/gmail/sync-history', { afterDate }).then(r => r.data),
   getAuthUrl: () => api.get<{ authUrl: string }>('/gmail/auth').then(r => r.data),
   submitCode: (code: string) => api.post<{ success: boolean }>('/gmail/code', { code }).then(r => r.data),
 };

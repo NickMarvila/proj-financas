@@ -9,6 +9,7 @@ export default function Configuracoes() {
   const [qrCode, setQrCode] = useState<string>('');
   const [testMsg, setTestMsg] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [historyDate, setHistoryDate] = useState('2026-07-01');
   const [sending, setSending] = useState(false);
   const [authUrl, setAuthUrl] = useState('');
   const [authCode, setAuthCode] = useState('');
@@ -64,7 +65,7 @@ export default function Configuracoes() {
   const syncHistory = async () => {
     setSyncing(true);
     try {
-      const r = await gmailApi.syncHistory();
+      const r = await gmailApi.syncHistory(historyDate);
       alert(`${r.processed} e-mail(s) do histórico processados`);
     } catch (e: any) {
       alert(`Erro ao sincronizar histórico: ${e.response?.data?.message || e.message}`);
@@ -161,15 +162,19 @@ export default function Configuracoes() {
             )}
 
             {gmailStatus?.isAuthenticated && (
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <button id="btn-sync-gmail-cfg" className="btn btn-primary" onClick={syncGmail} disabled={syncing}>
                   <RefreshCw size={15} />
-                  {syncing ? 'Sincronizando...' : 'Sincronizar E-mails Agora'}
+                  {syncing ? 'Sincronizando...' : 'Sincronizar Novos E-mails'}
                 </button>
-                <button id="btn-sync-history-gmail-cfg" className="btn btn-secondary" onClick={syncHistory} disabled={syncing}>
-                  <RefreshCw size={15} />
-                  Sincronizar Histórico (Ler Antigos)
-                </button>
+                <div style={{ padding: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sincronizar histórico a partir de:</div>
+                  <input type="date" className="form-input" value={historyDate} onChange={e => setHistoryDate(e.target.value)} />
+                  <button id="btn-sync-history-gmail-cfg" className="btn btn-secondary" onClick={syncHistory} disabled={syncing}>
+                    <RefreshCw size={15} />
+                    Sincronizar Histórico
+                  </button>
+                </div>
               </div>
             )}
           </div>

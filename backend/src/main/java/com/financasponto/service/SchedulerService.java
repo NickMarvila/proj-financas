@@ -30,7 +30,7 @@ public class SchedulerService {
     public void pollGmail() {
         log.debug("Polling Gmail...");
         try {
-            int count = gmailService.pollAndProcess(false);
+            int count = gmailService.pollAndProcess(false, null);
             if (count > 0) log.info("Processados {} e-mail(is) de ponto", count);
         } catch (Exception e) {
             log.error("Erro no polling do Gmail: {}", e.getMessage());

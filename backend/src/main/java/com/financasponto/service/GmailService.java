@@ -127,7 +127,7 @@ public class GmailService {
         return Files.exists(Paths.get(credentialsPath));
     }
 
-    public int pollAndProcess(boolean syncHistory) throws Exception {
+    public int pollAndProcess(boolean syncHistory, String afterDate) throws Exception {
         if (!hasCredentials()) {
             log.warn("credentials.json não encontrado, pulando polling Gmail");
             return 0;
@@ -135,6 +135,10 @@ public class GmailService {
         int processed = 0;
         Gmail service = getGmailService();
         String query = "from:" + pollSender + (syncHistory ? "" : " is:unread");
+        if (syncHistory && afterDate != null && !afterDate.isBlank()) {
+            query += " after:" + afterDate.replace("-", "/"); // Gmail search uses YYYY/MM/DD
+        }
+        
         ListMessagesResponse response = service.users().messages()
                 .list(gmailUser)
                 .setQ(query)
@@ -166,6 +170,8 @@ public class GmailService {
                     service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
                 }
             }
+            // Anti Rate-Limit (evitar Quota Exceeded 403)
+            java.lang.Thread.sleep(200);
         }
         return processed;
     }

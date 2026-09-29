@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Clock, Wallet, Settings, History
+  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
@@ -14,7 +15,7 @@ const navItems = [
   { to: '/ponto', icon: Clock, label: 'Ponto' },
   { to: '/financas', icon: Wallet, label: 'Finanças' },
   { to: '/historico', icon: History, label: 'Histórico' },
-  { to: '/configuracoes', icon: Settings, label: 'Configurações' },
+  { to: '/configuracoes', icon: Settings, label: 'Config' },
 ];
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -25,10 +26,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function MobileBottomNav() {
+  return (
+    <nav className="mobile-bottom-nav">
+      {navItems.map(({ to, icon: Icon, label, end }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={end}
+          className={({ isActive }) => `mob-nav-item${isActive ? ' active' : ''}`}
+        >
+          <Icon size={20} />
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 function MainLayout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="app-layout">
-      <aside className="sidebar">
+      {/* Mobile overlay */}
+      <div
+        className={`mobile-overlay${mobileMenuOpen ? ' visible' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      <aside className={`sidebar${mobileMenuOpen ? ' mobile-open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-icon">💰</div>
           <div>
@@ -43,9 +70,10 @@ function MainLayout() {
               to={to}
               end={end}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
             >
               <Icon size={18} />
-              {label}
+              {label === 'Config' ? 'Configurações' : label}
             </NavLink>
           ))}
         </nav>
@@ -55,9 +83,9 @@ function MainLayout() {
               localStorage.removeItem('token');
               window.location.href = '/login';
             }}
-            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:0}}
+            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13}}
           >
-            Sair
+            <LogOut size={14} /> Sair
           </button>
         </div>
       </aside>
@@ -71,6 +99,9 @@ function MainLayout() {
           <Route path="/configuracoes" element={<Configuracoes />} />
         </Routes>
       </main>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

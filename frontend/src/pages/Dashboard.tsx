@@ -120,7 +120,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title">Dashboard</h1>
           <div className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -265,16 +265,16 @@ export default function Dashboard() {
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 15 }}>
             Registre entradas ou saídas que não foram contabilizadas no sistema oficial (ex: pausa para o almoço aos sábados).
           </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-            <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 120px', minWidth: 0 }}>
               <label className="form-label">Data</label>
               <input type="date" className="form-input" value={manualDate} onChange={e => setManualDate(e.target.value)} />
             </div>
-            <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 100px', minWidth: 0 }}>
               <label className="form-label">Horário</label>
               <input type="time" className="form-input" value={manualTime} onChange={e => setManualTime(e.target.value)} />
             </div>
-            <button className="btn btn-primary" onClick={handleManualPunch} disabled={savingManual || !manualTime || !manualDate}>
+            <button className="btn btn-primary" style={{ flex: '1 1 100%' }} onClick={handleManualPunch} disabled={savingManual || !manualTime || !manualDate}>
               {savingManual ? 'Salvando...' : 'Registrar Ponto'}
             </button>
           </div>

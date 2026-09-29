@@ -44,7 +44,7 @@ public class GmailController {
     @PostMapping("/sync")
     public ResponseEntity<Map<String, Object>> syncNow() {
         try {
-            int count = gmailService.pollAndProcess(false);
+            int count = gmailService.pollAndProcess(false, null);
             return ResponseEntity.ok(Map.of("processed", count));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -52,9 +52,10 @@ public class GmailController {
     }
 
     @PostMapping("/sync-history")
-    public ResponseEntity<Map<String, Object>> syncHistory() {
+    public ResponseEntity<Map<String, Object>> syncHistory(@RequestBody(required = false) Map<String, String> body) {
         try {
-            int count = gmailService.pollAndProcess(true);
+            String afterDate = body != null ? body.get("afterDate") : null;
+            int count = gmailService.pollAndProcess(true, afterDate);
             return ResponseEntity.ok(Map.of("processed", count));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
