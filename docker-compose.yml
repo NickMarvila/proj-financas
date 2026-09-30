@@ -20,7 +20,7 @@ services:
       retries: 5
 
   evolution-api:
-    image: atendai/evolution-api:v2.2.3
+    image: evoapicloud/evolution-api:latest
     container_name: financas-evolution
     restart: unless-stopped
     ports:
@@ -53,8 +53,6 @@ services:
       dockerfile: Dockerfile
     container_name: financas-backend
     restart: unless-stopped
-    ports:
-      - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-financasponto}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-financas}
@@ -74,30 +72,24 @@ services:
         condition: service_healthy
       evolution-api:
         condition: service_started
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.financas-backend.rule=Host(`api.ponto.localhost`)"
-      - "traefik.http.services.financas-backend.loadbalancer.server.port=8080"
     networks:
-      - web
       - default
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: financas-frontend
     restart: unless-stopped
-    ports:
-      - "3000:80"
     depends_on:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.financas-frontend.rule=Host(`ponto.localhost`)"
+      - "traefik.http.routers.financas-frontend.rule=Host(`nickmvp.duckdns.org`)"
+      - "traefik.http.routers.financas-frontend.entrypoints=websecure"
+      - "traefik.http.routers.financas-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.financas-frontend.loadbalancer.server.port=80"
     networks:
-      - web
+      - proxy
       - default
 
 volumes:
@@ -106,5 +98,5 @@ volumes:
   evolution_store:
 
 networks:
-  web:
+  proxy:
     external: true

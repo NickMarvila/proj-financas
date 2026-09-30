@@ -40,6 +40,14 @@ function MobileBottomNav() {
           <span>{label}</span>
         </NavLink>
       ))}
+      <button
+        className="mob-nav-item"
+        onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }}
+        style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer' }}
+      >
+        <LogOut size={20} />
+        <span>Sair</span>
+      </button>
     </nav>
   );
 }
