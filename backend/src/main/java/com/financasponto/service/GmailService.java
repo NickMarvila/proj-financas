@@ -165,13 +165,20 @@ public class GmailService {
                             punch.hash(), message.getId(), extracted, syncHistory);
                     processed++;
                     // Marcar como lido
-                    ModifyMessageRequest markRead = new ModifyMessageRequest()
-                            .setRemoveLabelIds(List.of("UNREAD"));
-                    service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
+                    try {
+                        ModifyMessageRequest markRead = new ModifyMessageRequest()
+                                .setRemoveLabelIds(List.of("UNREAD"));
+                        service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
+                    } catch (Exception e) {
+                        log.warn("Falha ao marcar email {} como lido: {}", message.getId(), e.getMessage());
+                        if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
+                            java.lang.Thread.sleep(5000); // Backoff longo em caso de rate limit
+                        }
+                    }
                 }
             }
             // Anti Rate-Limit (evitar Quota Exceeded 403)
-            java.lang.Thread.sleep(200);
+            java.lang.Thread.sleep(syncHistory ? 1000 : 300);
         }
         return processed;
     }
