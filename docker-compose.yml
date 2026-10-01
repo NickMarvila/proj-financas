@@ -84,7 +84,7 @@ services:
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.financas-frontend.rule=Host(`nickmvp.duckdns.org`)"
+      - "traefik.http.routers.financas-frontend.rule=Host(`pontonick.duckdns.org`)"
       - "traefik.http.routers.financas-frontend.entrypoints=websecure"
       - "traefik.http.routers.financas-frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.financas-frontend.loadbalancer.server.port=80"
