@@ -151,33 +151,51 @@ public class GmailService {
         }
 
         for (Message msgRef : messages) {
-            Message message = service.users().messages()
-                    .get(gmailUser, msgRef.getId())
-                    .setFormat("full")
-                    .execute();
+            int maxRetries = 3;
+            int retryCount = 0;
+            boolean success = false;
 
-            String extracted = extractTextFromMessage(service, message);
-            if (extracted != null) {
-                ParsedPunch punch = parsePunchFromText(extracted);
-                if (punch != null) {
-                    timeRecordService.saveRecord(
-                            punch.timestamp(), punch.origin(), punch.online(),
-                            punch.hash(), message.getId(), extracted, syncHistory);
-                    processed++;
-                    // Marcar como lido
-                    try {
-                        ModifyMessageRequest markRead = new ModifyMessageRequest()
-                                .setRemoveLabelIds(List.of("UNREAD"));
-                        service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
-                    } catch (Exception e) {
-                        log.warn("Falha ao marcar email {} como lido: {}", message.getId(), e.getMessage());
-                        if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
-                            java.lang.Thread.sleep(5000); // Backoff longo em caso de rate limit
+            while (retryCount < maxRetries && !success) {
+                try {
+                    Message message = service.users().messages()
+                            .get(gmailUser, msgRef.getId())
+                            .setFormat("full")
+                            .execute();
+
+                    String extracted = extractTextFromMessage(service, message);
+                    if (extracted != null) {
+                        ParsedPunch punch = parsePunchFromText(extracted);
+                        if (punch != null) {
+                            timeRecordService.saveRecord(
+                                    punch.timestamp(), punch.origin(), punch.online(),
+                                    punch.hash(), message.getId(), extracted, syncHistory);
+                            processed++;
+                            
+                            // Marcar como lido
+                            ModifyMessageRequest markRead = new ModifyMessageRequest()
+                                    .setRemoveLabelIds(List.of("UNREAD"));
+                            service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
                         }
+                    }
+                    success = true; // Message fully processed without exceptions
+                } catch (Exception e) {
+                    log.warn("Erro ao processar email {} (tentativa {}/{}): {}", 
+                             msgRef.getId(), retryCount + 1, maxRetries, e.getMessage());
+                    
+                    if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
+                        retryCount++;
+                        if (retryCount < maxRetries) {
+                            long backoff = 5000L * retryCount;
+                            log.info("Rate limit atingido. Aguardando {}ms antes de tentar novamente...", backoff);
+                            java.lang.Thread.sleep(backoff);
+                        }
+                    } else {
+                        // Se for outro erro, não é rate limit, interrompe as tentativas deste email
+                        break; 
                     }
                 }
             }
-            // Anti Rate-Limit (evitar Quota Exceeded 403)
+            // Anti Rate-Limit baseline (evitar Quota Exceeded 403)
             java.lang.Thread.sleep(syncHistory ? 1000 : 300);
         }
         return processed;
