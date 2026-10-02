@@ -34,7 +34,7 @@ public class TimeRecordService {
                                   String hash, String emailMessageId, String rawText, boolean silent) {
 
         // Evitar duplicatas
-        if (emailMessageId != null && timeRecordRepository.findByEmailMessageId(emailMessageId).isPresent()) {
+        if (isAlreadyProcessed(emailMessageId)) {
             log.info("Registro já processado: {}", emailMessageId);
             return null;
         }
@@ -68,6 +68,11 @@ public class TimeRecordService {
         }
 
         return saved;
+    }
+
+    public boolean isAlreadyProcessed(String emailMessageId) {
+        if (emailMessageId == null) return false;
+        return timeRecordRepository.findByEmailMessageId(emailMessageId).isPresent();
     }
 
     @Transactional

@@ -151,6 +151,12 @@ public class GmailService {
         }
 
         for (Message msgRef : messages) {
+            // Se já temos no banco, nem gasta cota da API perguntando pro Google o corpo do email!
+            if (timeRecordService.isAlreadyProcessed(msgRef.getId())) {
+                log.info("Email {} já processado, pulando leitura.", msgRef.getId());
+                continue;
+            }
+
             int maxRetries = 3;
             int retryCount = 0;
             boolean success = false;
