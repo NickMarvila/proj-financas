@@ -51,6 +51,10 @@ app:
     overtime-rate: 0.50
     monthly-divisor: 220
 
+  # JWT
+  jwt:
+    secret: ${JWT_SECRET:f1n4nc4sP0nt0S3cr3tK3yTh4t1sL0ngEn0ughF0rHS256!!}
+
 logging:
   level:
     com.financasponto: INFO
