@@ -62,6 +62,11 @@ public class AuthController {
                 && usuarioRepository.findByEmployeeNameIgnoreCase(employeeName).isPresent()) {
             return ResponseEntity.badRequest().body("Erro: já existe usuário vinculado a esse nome de colaborador");
         }
+        String matricula = dto.getMatricula() != null ? dto.getMatricula().trim() : null;
+        if (matricula != null && !matricula.isEmpty()
+                && usuarioRepository.findByMatricula(matricula).isPresent()) {
+            return ResponseEntity.badRequest().body("Erro: já existe usuário com esta matrícula");
+        }
 
         Usuario.Role role;
         try {
@@ -76,6 +81,7 @@ public class AuthController {
         user.setEmployeeName(employeeName == null || employeeName.isEmpty() ? null : employeeName);
         user.setRole(role);
         user.setWhatsappPhone(dto.getWhatsappPhone());
+        user.setMatricula(matricula == null || matricula.isEmpty() ? null : matricula);
 
         usuarioRepository.save(user);
 

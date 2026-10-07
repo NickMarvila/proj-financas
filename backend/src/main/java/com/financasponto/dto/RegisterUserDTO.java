@@ -13,4 +13,6 @@ public class RegisterUserDTO {
     private String role;
     /** Opcional: telefone para notificações WhatsApp (ex: 5521999999999). */
     private String whatsappPhone;
+    /** Matrícula sem zeros a esquerda (usado para ligar comprovante ao user). */
+    private String matricula;
 }

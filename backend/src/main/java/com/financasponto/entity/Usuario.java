@@ -26,6 +26,9 @@ public class Usuario {
     @Column(name = "employee_name")
     private String employeeName;
 
+    @Column(unique = true)
+    private String matricula;
+
     /** Anulável no banco: o ddl-auto não consegue criar coluna NOT NULL em tabela com dados. Null = USER. */
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;

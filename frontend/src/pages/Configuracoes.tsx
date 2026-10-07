@@ -234,6 +234,7 @@ export default function Configuracoes() {
               username: (form.elements.namedItem('username') as HTMLInputElement).value,
               password: (form.elements.namedItem('password') as HTMLInputElement).value,
               employeeName: (form.elements.namedItem('employeeName') as HTMLInputElement).value,
+              matricula: (form.elements.namedItem('matricula') as HTMLInputElement).value,
               whatsappPhone: (form.elements.namedItem('whatsappPhone') as HTMLInputElement).value,
               role: (form.elements.namedItem('role') as HTMLSelectElement).value,
             };
@@ -257,6 +258,10 @@ export default function Configuracoes() {
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Nome Completo (Conforme no comprovante - Opcional)</label>
               <input name="employeeName" className="form-input" placeholder="JOAO DA SILVA" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Matrícula (Sem zeros a esquerda - Obrigatório para ponto autom.)</label>
+              <input name="matricula" className="form-input" placeholder="ex: 24719" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">WhatsApp (Opcional, com DDD)</label>

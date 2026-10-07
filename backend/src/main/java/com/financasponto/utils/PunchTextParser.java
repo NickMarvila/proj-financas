@@ -22,10 +22,11 @@ public final class PunchTextParser {
     private static final Pattern HASH = Pattern.compile("Hash:\\s*([A-Za-z0-9+/=]+)");
     // O comprovante tem dois "Nome:" — o do EMPREGADOR vem antes. Queremos o do bloco COLABORADOR.
     private static final Pattern EMPLOYEE_NAME = Pattern.compile("COLABORADOR\\s*[\\r\\n]+\\s*Nome:[ \\t]*([^\\r\\n]+)");
+    private static final Pattern MATRICULA = Pattern.compile("(?:Matr[íi]cula|PIS):\\s*0*(\\d+)", Pattern.CASE_INSENSITIVE);
 
     private PunchTextParser() {}
 
-    public record ParsedPunch(LocalDateTime timestamp, String origin, Boolean online, String hash, String employeeName) {}
+    public record ParsedPunch(LocalDateTime timestamp, String origin, Boolean online, String hash, String employeeName, String matricula) {}
 
     public static String extractEmployeeName(String text) {
         if (text == null) return null;
@@ -58,7 +59,11 @@ public final class PunchTextParser {
             Matcher h = HASH.matcher(text);
             if (h.find()) hash = h.group(1).trim();
 
-            return new ParsedPunch(timestamp, origin, online, hash, extractEmployeeName(text));
+            String matricula = null;
+            Matcher m = MATRICULA.matcher(text);
+            if (m.find()) matricula = m.group(1).trim();
+
+            return new ParsedPunch(timestamp, origin, online, hash, extractEmployeeName(text), matricula);
         } catch (Exception e) {
             log.error("Erro ao parsear comprovante: {}", e.getMessage());
             return null;

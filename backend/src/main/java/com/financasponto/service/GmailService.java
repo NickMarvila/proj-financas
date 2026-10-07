@@ -170,7 +170,7 @@ public class GmailService {
                     String extracted = extractTextFromMessage(service, message);
                     PunchTextParser.ParsedPunch punch = PunchTextParser.parse(extracted);
                     if (punch != null) {
-                        Optional<Usuario> owner = resolveOwner(punch.employeeName());
+                        Optional<Usuario> owner = resolveOwner(punch);
                         if (owner.isPresent()) {
                             TimeRecord saved = timeRecordService.saveRecord(owner.get(),
                                     punch.timestamp(), punch.origin(), punch.online(),
@@ -260,9 +260,18 @@ public class GmailService {
         }
     }
 
-    /** Encontra o usuário dono da batida pelo nome do colaborador no comprovante (sem diferenciar maiúsculas). */
-    private Optional<Usuario> resolveOwner(String employeeName) {
-        if (employeeName == null || employeeName.isBlank()) return Optional.empty();
-        return usuarioRepository.findByEmployeeNameIgnoreCase(employeeName.trim());
+    /** Encontra o usuário dono da batida pela matrícula ou nome do colaborador. */
+    private Optional<Usuario> resolveOwner(PunchTextParser.ParsedPunch punch) {
+        if (punch.matricula() != null && !punch.matricula().isBlank()) {
+            Optional<Usuario> byMatricula = usuarioRepository.findByMatricula(punch.matricula().trim());
+            if (byMatricula.isPresent()) {
+                return byMatricula;
+            }
+        }
+        // Fallback para o nome
+        if (punch.employeeName() != null && !punch.employeeName().isBlank()) {
+            return usuarioRepository.findByEmployeeNameIgnoreCase(punch.employeeName().trim());
+        }
+        return Optional.empty();
     }
 }
