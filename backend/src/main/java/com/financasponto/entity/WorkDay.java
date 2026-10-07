@@ -4,9 +4,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
-@Table(name = "work_days")
+@Table(name = "work_days",
+       uniqueConstraints = @UniqueConstraint(name = "uk_work_days_user_date", columnNames = {"user_id", "date"}))
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,7 +19,12 @@ public class WorkDay {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private Usuario user;
+
+    @Column(nullable = false)
     private LocalDate date;
 
     // Horas trabalhadas no dia (em minutos)

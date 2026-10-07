@@ -9,6 +9,10 @@ import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.*;
+import com.financasponto.entity.TimeRecord;
+import com.financasponto.entity.Usuario;
+import com.financasponto.repository.UsuarioRepository;
+import com.financasponto.utils.PunchTextParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -19,11 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -43,6 +43,7 @@ public class GmailService {
     private String pollSender;
 
     private final TimeRecordService timeRecordService;
+    private final UsuarioRepository usuarioRepository;
 
     private static final List<String> SCOPES = List.of(
             GmailScopes.GMAIL_READONLY,
@@ -50,8 +51,6 @@ public class GmailService {
     );
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String REDIRECT_URI = "http://localhost:8888/Callback";
-    private static final DateTimeFormatter STAMP_FMT =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private GoogleAuthorizationCodeFlow buildFlow() throws Exception {
         Path credFile = Paths.get(credentialsPath);
@@ -169,19 +168,24 @@ public class GmailService {
                             .execute();
 
                     String extracted = extractTextFromMessage(service, message);
-                    if (extracted != null) {
-                        ParsedPunch punch = parsePunchFromText(extracted);
-                        if (punch != null) {
-                            timeRecordService.saveRecord(
+                    PunchTextParser.ParsedPunch punch = PunchTextParser.parse(extracted);
+                    if (punch != null) {
+                        Optional<Usuario> owner = resolveOwner(punch.employeeName());
+                        if (owner.isPresent()) {
+                            TimeRecord saved = timeRecordService.saveRecord(owner.get(),
                                     punch.timestamp(), punch.origin(), punch.online(),
                                     punch.hash(), message.getId(), extracted, syncHistory);
-                            processed++;
-                            
-                            // Marcar como lido
-                            ModifyMessageRequest markRead = new ModifyMessageRequest()
-                                    .setRemoveLabelIds(List.of("UNREAD"));
-                            service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
+                            if (saved != null) processed++;
+                        } else {
+                            // Marcamos como lido mesmo assim para não reprocessar (e gastar cota) a cada 5 min.
+                            // Após cadastrar o colaborador, a sincronização de histórico importa essas batidas.
+                            log.warn("Batida ignorada: colaborador '{}' não está vinculado a nenhum usuário (email {})",
+                                    punch.employeeName(), message.getId());
                         }
+                        // Marcar como lido
+                        ModifyMessageRequest markRead = new ModifyMessageRequest()
+                                .setRemoveLabelIds(List.of("UNREAD"));
+                        service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
                     }
                     success = true; // Message fully processed without exceptions
                 } catch (Exception e) {
@@ -256,39 +260,9 @@ public class GmailService {
         }
     }
 
-    private ParsedPunch parsePunchFromText(String text) {
-        try {
-            Pattern stampPattern = Pattern.compile("Marca[çc][aã]o:\\s*(\\d{2}/\\d{2}/\\d{4}\\s+\\d{2}:\\d{2}:\\d{2})");
-            Pattern originPattern = Pattern.compile("Origem:\\s*(.+)");
-            Pattern onlinePattern = Pattern.compile("Online:\\s*(Sim|N[aã]o|Yes|No)", Pattern.CASE_INSENSITIVE);
-            Pattern hashPattern = Pattern.compile("Hash:\\s*([A-Za-z0-9+/=]+)");
-
-            Matcher stampMatcher = stampPattern.matcher(text);
-            if (!stampMatcher.find()) {
-                log.warn("Data/hora de marcação não encontrada no texto");
-                return null;
-            }
-
-            LocalDateTime timestamp = LocalDateTime.parse(stampMatcher.group(1).trim(), STAMP_FMT);
-
-            String origin = "SISTEMA";
-            Matcher originMatcher = originPattern.matcher(text);
-            if (originMatcher.find()) origin = originMatcher.group(1).trim();
-
-            Boolean online = null;
-            Matcher onlineMatcher = onlinePattern.matcher(text);
-            if (onlineMatcher.find()) online = onlineMatcher.group(1).equalsIgnoreCase("Sim");
-
-            String hash = null;
-            Matcher hashMatcher = hashPattern.matcher(text);
-            if (hashMatcher.find()) hash = hashMatcher.group(1).trim();
-
-            return new ParsedPunch(timestamp, origin, online, hash);
-        } catch (Exception e) {
-            log.error("Erro ao parsear comprovante: {}", e.getMessage());
-            return null;
-        }
+    /** Encontra o usuário dono da batida pelo nome do colaborador no comprovante (sem diferenciar maiúsculas). */
+    private Optional<Usuario> resolveOwner(String employeeName) {
+        if (employeeName == null || employeeName.isBlank()) return Optional.empty();
+        return usuarioRepository.findByEmployeeNameIgnoreCase(employeeName.trim());
     }
-
-    public record ParsedPunch(LocalDateTime timestamp, String origin, Boolean online, String hash) {}
 }

@@ -4,8 +4,10 @@ import com.financasponto.entity.*;
 import com.financasponto.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,53 +28,70 @@ public class FinanceService {
     private final MonthlySummaryRepository monthlySummaryRepository;
     private final WorkDayRepository workDayRepository;
 
-    public SalaryConfig getSalaryConfig() {
-        return salaryConfigRepository.findFirstByActiveTrueOrderByUpdatedAtDesc()
+    public SalaryConfig getSalaryConfig(Long userId) {
+        return salaryConfigRepository.findFirstByUserIdAndActiveTrueOrderByUpdatedAtDesc(userId)
                 .orElse(null);
     }
 
     @Transactional
-    public SalaryConfig saveSalaryConfig(SalaryConfig config) {
-        // Desativar configs anteriores
-        salaryConfigRepository.findFirstByActiveTrueOrderByUpdatedAtDesc()
+    public SalaryConfig saveSalaryConfig(Usuario user, SalaryConfig config) {
+        // Desativar configs anteriores deste usuário
+        salaryConfigRepository.findFirstByUserIdAndActiveTrueOrderByUpdatedAtDesc(user.getId())
                 .ifPresent(old -> {
                     old.setActive(false);
                     salaryConfigRepository.save(old);
                 });
+        config.setId(null); // sempre cria uma nova versão; nunca sobrescreve config de outro usuário
+        config.setUser(user);
         config.setActive(true);
         return salaryConfigRepository.save(config);
     }
 
-    public List<Expense> getActiveExpenses() {
-        return expenseRepository.findByActiveTrueOrderByNameAsc();
+    public List<Expense> getActiveExpenses(Long userId) {
+        return expenseRepository.findByUserIdAndActiveTrueOrderByNameAsc(userId);
     }
 
     @Transactional
-    public Expense saveExpense(Expense expense) {
+    public Expense createExpense(Usuario user, Expense expense) {
+        expense.setId(null);
+        expense.setUser(user);
         return expenseRepository.save(expense);
     }
 
     @Transactional
-    public void deleteExpense(Long id) {
-        expenseRepository.findById(id).ifPresent(e -> {
-            e.setActive(false);
-            expenseRepository.save(e);
-        });
+    public Expense updateExpense(Usuario user, Long id, Expense expense) {
+        findOwnedExpense(user.getId(), id);
+        expense.setId(id);
+        expense.setUser(user);
+        return expenseRepository.save(expense);
     }
 
     @Transactional
-    public MonthlySummary recalculateMonthlySummary(int month, int year) {
+    public void deleteExpense(Long userId, Long id) {
+        Expense e = findOwnedExpense(userId, id);
+        e.setActive(false);
+        expenseRepository.save(e);
+    }
+
+    private Expense findOwnedExpense(Long userId, Long id) {
+        return expenseRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Despesa não encontrada"));
+    }
+
+    @Transactional
+    public MonthlySummary recalculateMonthlySummary(Usuario user, int month, int year) {
+        Long userId = user.getId();
         LocalDate start = CycleUtils.getCycleStart(year, month);
         LocalDate end = CycleUtils.getCycleEnd(year, month);
 
-        Integer overtimeMinutes = workDayRepository.sumOvertimeMinutesByDateBetween(start, end);
+        Integer overtimeMinutes = workDayRepository.sumOvertimeMinutesByUserIdAndDateBetween(userId, start, end);
         if (overtimeMinutes == null) overtimeMinutes = 0;
 
         // Sábados seguem o MÊS CALENDÁRIO (dia 1 ao último dia), NÃO o ciclo 21-20
         int totalSaturdays = CycleUtils.countSaturdaysInMonth(year, month);
         LocalDate startOfMonth = LocalDate.of(year, month, 1);
         LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
-        long workedSaturdays = workDayRepository.countWorkedSaturdaysInCycle(startOfMonth, endOfMonth);
+        long workedSaturdays = workDayRepository.countWorkedSaturdaysInCycle(userId, startOfMonth, endOfMonth);
         
         int missingSaturdays = totalSaturdays - (int) workedSaturdays;
         if (missingSaturdays < 0) missingSaturdays = 0;
@@ -97,7 +116,7 @@ public class FinanceService {
         }
 
         SalaryConfig config = salaryConfigRepository
-                .findFirstByActiveTrueOrderByUpdatedAtDesc().orElse(null);
+                .findFirstByUserIdAndActiveTrueOrderByUpdatedAtDesc(userId).orElse(null);
 
         BigDecimal baseSalary = config != null ? config.getBaseSalary() : BigDecimal.ZERO;
 
@@ -118,16 +137,16 @@ public class FinanceService {
             }
         }
 
-        List<Expense> expenses = expenseRepository.findActiveForMonth(month, year);
+        List<Expense> expenses = expenseRepository.findActiveForMonthByUserId(userId, month, year);
         BigDecimal totalExpenses = expenses.stream()
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal carriedOver = getCarriedOverFromPreviousMonth(month, year);
+        BigDecimal carriedOver = getCarriedOverFromPreviousMonth(userId, month, year);
         BigDecimal finalBalance = baseSalary.add(overtimePay).subtract(totalExpenses).add(carriedOver);
 
-        MonthlySummary summary = monthlySummaryRepository.findByMonthAndYear(month, year)
-                .orElse(MonthlySummary.builder().month(month).year(year).build());
+        MonthlySummary summary = monthlySummaryRepository.findByUserIdAndMonthAndYear(userId, month, year)
+                .orElse(MonthlySummary.builder().user(user).month(month).year(year).build());
 
         summary.setBaseSalary(baseSalary);
         summary.setTotalOvertimeMinutes(overtimeMinutes);
@@ -140,24 +159,24 @@ public class FinanceService {
         return monthlySummaryRepository.save(summary);
     }
 
-    private BigDecimal getCarriedOverFromPreviousMonth(int month, int year) {
-        List<MonthlySummary> prev = monthlySummaryRepository.findPreviousMonths(month, year);
+    private BigDecimal getCarriedOverFromPreviousMonth(Long userId, int month, int year) {
+        List<MonthlySummary> prev = monthlySummaryRepository.findPreviousMonthsByUserId(userId, month, year);
         if (prev.isEmpty()) return BigDecimal.ZERO;
         MonthlySummary last = prev.get(0);
         BigDecimal balance = last.getFinalBalance();
         return (balance != null && balance.compareTo(BigDecimal.ZERO) > 0) ? balance : BigDecimal.ZERO;
     }
 
-    public MonthlySummary getSummary(int year, int month) {
-        return recalculateMonthlySummary(month, year);
+    public MonthlySummary getSummary(Usuario user, int year, int month) {
+        return recalculateMonthlySummary(user, month, year);
     }
 
-    public MonthlySummary getCurrentMonthSummary() {
+    public MonthlySummary getCurrentMonthSummary(Usuario user) {
         Cycle cycle = CycleUtils.getCurrentCycle(LocalDate.now());
-        return getSummary(cycle.year, cycle.month);
+        return getSummary(user, cycle.year, cycle.month);
     }
 
-    public List<MonthlySummary> getAllSummaries() {
-        return monthlySummaryRepository.findAllByOrderByYearDescMonthDesc();
+    public List<MonthlySummary> getAllSummaries(Long userId) {
+        return monthlySummaryRepository.findByUserIdOrderByYearDescMonthDesc(userId);
     }
 }

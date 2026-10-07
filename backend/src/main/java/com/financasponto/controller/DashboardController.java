@@ -1,8 +1,10 @@
 package com.financasponto.controller;
 
 import com.financasponto.entity.MonthlySummary;
+import com.financasponto.entity.Usuario;
 import com.financasponto.entity.WorkDay;
 import com.financasponto.repository.WorkDayRepository;
+import com.financasponto.security.CurrentUser;
 import com.financasponto.service.FinanceService;
 import com.financasponto.service.TimeRecordService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class DashboardController {
     private final FinanceService financeService;
     private final TimeRecordService timeRecordService;
     private final WorkDayRepository workDayRepository;
+    private final CurrentUser currentUser;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getDashboard(
@@ -38,13 +41,14 @@ public class DashboardController {
                 ? today 
                 : CycleUtils.getCycleEnd(y, m);
         
-        MonthlySummary summary = financeService.getSummary(y, m);
-        Optional<WorkDay> targetWorkDay = workDayRepository.findByDate(targetDate);
+        Usuario user = currentUser.get();
+        MonthlySummary summary = financeService.getSummary(user, y, m);
+        Optional<WorkDay> targetWorkDay = workDayRepository.findByUserIdAndDate(user.getId(), targetDate);
         
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("today", targetDate.toString());
         response.put("monthSummary", summary);
-        response.put("todayRecords", timeRecordService.getMonthRecords(y, m)
+        response.put("todayRecords", timeRecordService.getMonthRecords(user.getId(), y, m)
                 .stream().filter(r -> r.getTimestamp().toLocalDate().equals(targetDate)).toList());
         response.put("todayWorkDay", targetWorkDay.orElse(null));
         response.put("currentMonth", Map.of("month", m, "year", y));

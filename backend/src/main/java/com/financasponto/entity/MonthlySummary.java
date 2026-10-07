@@ -4,10 +4,11 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "monthly_summary",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"month", "year"}))
+       uniqueConstraints = @UniqueConstraint(name = "uk_monthly_summary_user_month_year", columnNames = {"user_id", "month", "year"}))
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,6 +18,11 @@ public class MonthlySummary {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private Usuario user;
 
     @Column(nullable = false)
     private Integer month;

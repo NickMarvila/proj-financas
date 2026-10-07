@@ -1,6 +1,7 @@
 package com.financasponto.service;
 
 import com.financasponto.entity.TimeRecord;
+import com.financasponto.entity.Usuario;
 import com.financasponto.entity.WorkDay;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,10 +40,35 @@ public class WhatsAppService {
                 .build();
     }
 
+    /** Envia para o telefone global configurado (usado pelo teste manual do painel). */
     public void sendMessage(String message) {
+        sendMessageTo(targetPhone, message);
+    }
+
+    /**
+     * Telefone de destino do usuário: o cadastrado nele, ou o global para o ADMIN.
+     * Retorna null se o usuário não deve ser notificado.
+     */
+    public String resolvePhone(Usuario user) {
+        if (user == null) return null;
+        if (user.getWhatsappPhone() != null && !user.getWhatsappPhone().isBlank()) return user.getWhatsappPhone().trim();
+        return user.isAdmin() ? targetPhone : null;
+    }
+
+    public void sendMessageTo(Usuario user, String message) {
+        String phone = resolvePhone(user);
+        if (phone == null) {
+            log.debug("Usuário {} sem telefone WhatsApp; notificação ignorada", user != null ? user.getUsername() : null);
+            return;
+        }
+        sendMessageTo(phone, message);
+    }
+
+    private void sendMessageTo(String phone, String message) {
+        if (phone == null || phone.isBlank()) return;
         try {
             Map<String, Object> body = Map.of(
-                "number", targetPhone,
+                "number", phone,
                 "text", message
             );
             client().post()
@@ -59,7 +85,7 @@ public class WhatsAppService {
         }
     }
 
-    public void notifyPunchRegistered(TimeRecord record) {
+    public void notifyPunchRegistered(Usuario user, TimeRecord record) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         String type = record.getPunchType() == TimeRecord.PunchType.IN ? "✅ ENTRADA" : "🚪 SAÍDA";
         String msg = String.format(
@@ -68,10 +94,10 @@ public class WhatsAppService {
             record.getTimestamp().format(fmt),
             record.getOrigin() != null ? record.getOrigin() : "SISTEMA"
         );
-        sendMessage(msg);
+        sendMessageTo(user, msg);
     }
 
-    public void notifyOvertimeStarted(WorkDay workDay, BigDecimal accumulatedValue) {
+    public void notifyOvertimeStarted(Usuario user, WorkDay workDay, BigDecimal accumulatedValue) {
         String msg = String.format(
             "⚠️ *HORA EXTRA INICIADA!*\n\n" +
             "📅 Dia: %s\n" +
@@ -81,11 +107,11 @@ public class WhatsAppService {
             workDay.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
             accumulatedValue.toPlainString()
         );
-        sendMessage(msg);
+        sendMessageTo(user, msg);
     }
 
-    public void sendDailySummary(String summaryText) {
-        sendMessage(summaryText);
+    public void sendDailySummary(Usuario user, String summaryText) {
+        sendMessageTo(user, summaryText);
     }
 
     public String createInstance() {

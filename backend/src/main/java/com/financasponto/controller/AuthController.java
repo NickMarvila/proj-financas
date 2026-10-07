@@ -1,9 +1,11 @@
 package com.financasponto.controller;
 
 import com.financasponto.dto.LoginDTO;
+import com.financasponto.dto.RegisterUserDTO;
 import com.financasponto.dto.TokenResponseDTO;
 import com.financasponto.entity.Usuario;
 import com.financasponto.repository.UsuarioRepository;
+import com.financasponto.security.CurrentUser;
 import com.financasponto.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -24,6 +29,7 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CurrentUser currentUser;
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginDTO loginDto) {
@@ -41,18 +47,49 @@ public class AuthController {
         }
     }
 
+    /** Cadastro de usuário — protegido por ROLE_ADMIN no SecurityConfig. */
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody LoginDTO signUpDto) {
-        if (usuarioRepository.findByUsername(signUpDto.getUsername()).isPresent()) {
+    public ResponseEntity<?> registerUser(@RequestBody RegisterUserDTO dto) {
+        if (dto.getUsername() == null || dto.getUsername().isBlank()
+                || dto.getPassword() == null || dto.getPassword().isBlank()) {
+            return ResponseEntity.badRequest().body("Erro: username e password são obrigatórios");
+        }
+        if (usuarioRepository.findByUsername(dto.getUsername().trim()).isPresent()) {
             return ResponseEntity.badRequest().body("Erro: Username já existe!");
+        }
+        String employeeName = dto.getEmployeeName() != null ? dto.getEmployeeName().trim() : null;
+        if (employeeName != null && !employeeName.isEmpty()
+                && usuarioRepository.findByEmployeeNameIgnoreCase(employeeName).isPresent()) {
+            return ResponseEntity.badRequest().body("Erro: já existe usuário vinculado a esse nome de colaborador");
+        }
+
+        Usuario.Role role;
+        try {
+            role = dto.getRole() != null ? Usuario.Role.valueOf(dto.getRole().trim().toUpperCase()) : Usuario.Role.USER;
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Erro: role deve ser ADMIN ou USER");
         }
 
         Usuario user = new Usuario();
-        user.setUsername(signUpDto.getUsername());
-        user.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
+        user.setUsername(dto.getUsername().trim());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEmployeeName(employeeName == null || employeeName.isEmpty() ? null : employeeName);
+        user.setRole(role);
+        user.setWhatsappPhone(dto.getWhatsappPhone());
 
         usuarioRepository.save(user);
 
         return ResponseEntity.ok("Usuário registrado com sucesso!");
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<Map<String, Object>> me() {
+        Usuario u = currentUser.get();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", u.getId());
+        body.put("username", u.getUsername());
+        body.put("employeeName", u.getEmployeeName());
+        body.put("role", u.getRole() != null ? u.getRole().name() : Usuario.Role.USER.name());
+        return ResponseEntity.ok(body);
     }
 }

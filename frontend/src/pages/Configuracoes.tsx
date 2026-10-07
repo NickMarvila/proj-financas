@@ -223,6 +223,58 @@ export default function Configuracoes() {
           </div>
         </div>
       </div>
+
+      <div className="grid-2" style={{ marginTop: 24 }}>
+        <div className="card">
+          <div className="section-title"><span className="dot" />Cadastrar Novo Usuário (Admin)</div>
+          <form style={{ display: 'flex', flexDirection: 'column', gap: 12 }} onSubmit={async (e) => {
+            e.preventDefault();
+            const form = e.target as HTMLFormElement;
+            const data = {
+              username: (form.elements.namedItem('username') as HTMLInputElement).value,
+              password: (form.elements.namedItem('password') as HTMLInputElement).value,
+              employeeName: (form.elements.namedItem('employeeName') as HTMLInputElement).value,
+              whatsappPhone: (form.elements.namedItem('whatsappPhone') as HTMLInputElement).value,
+              role: (form.elements.namedItem('role') as HTMLSelectElement).value,
+            };
+            try {
+              const { authApi } = await import('../api/client');
+              await authApi.register(data);
+              alert('Usuário criado com sucesso!');
+              form.reset();
+            } catch (err: any) {
+              alert('Erro ao criar usuário: ' + (err.response?.data || err.message));
+            }
+          }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Usuário de Acesso (Login)</label>
+              <input name="username" required className="form-input" placeholder="ex: joao.silva" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Senha</label>
+              <input name="password" type="password" required className="form-input" placeholder="***" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Nome Completo (Conforme no comprovante - Opcional)</label>
+              <input name="employeeName" className="form-input" placeholder="JOAO DA SILVA" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">WhatsApp (Opcional, com DDD)</label>
+              <input name="whatsappPhone" className="form-input" placeholder="ex: +5511999999999" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Nível de Acesso</label>
+              <select name="role" className="form-input" defaultValue="USER">
+                <option value="USER">Funcionário (Apenas vê seus próprios dados)</option>
+                <option value="ADMIN">Administrador (Pode ver configurações)</option>
+              </select>
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ marginTop: 8 }}>
+              Criar Usuário
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ package com.financasponto.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "time_records")
@@ -15,6 +16,11 @@ public class TimeRecord {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private Usuario user;
 
     @Column(nullable = false)
     private LocalDateTime timestamp;

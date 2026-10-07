@@ -9,10 +9,10 @@ import java.util.Optional;
 
 public interface MonthlySummaryRepository extends JpaRepository<MonthlySummary, Long> {
 
-    Optional<MonthlySummary> findByMonthAndYear(int month, int year);
+    Optional<MonthlySummary> findByUserIdAndMonthAndYear(Long userId, int month, int year);
 
-    List<MonthlySummary> findAllByOrderByYearDescMonthDesc();
+    List<MonthlySummary> findByUserIdOrderByYearDescMonthDesc(Long userId);
 
-    @Query("SELECT m FROM MonthlySummary m WHERE (m.year < :year) OR (m.year = :year AND m.month < :month) ORDER BY m.year DESC, m.month DESC")
-    List<MonthlySummary> findPreviousMonths(@Param("month") int month, @Param("year") int year);
+    @Query("SELECT m FROM MonthlySummary m WHERE m.user.id = :userId AND ((m.year < :year) OR (m.year = :year AND m.month < :month)) ORDER BY m.year DESC, m.month DESC")
+    List<MonthlySummary> findPreviousMonthsByUserId(@Param("userId") Long userId, @Param("month") int month, @Param("year") int year);
 }

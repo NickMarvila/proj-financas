@@ -1,7 +1,9 @@
 package com.financasponto.service;
 
 import com.financasponto.entity.MonthlySummary;
+import com.financasponto.entity.Usuario;
 import com.financasponto.entity.WorkDay;
+import com.financasponto.repository.UsuarioRepository;
 import com.financasponto.repository.WorkDayRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +26,9 @@ public class SchedulerService {
     private final WhatsAppService whatsAppService;
     private final WorkDayRepository workDayRepository;
     private final TimeRecordService timeRecordService;
+    private final UsuarioRepository usuarioRepository;
 
-    // Polling Gmail a cada 5 minutos
+    // Polling Gmail a cada 5 minutos (caixa única; cada batida é roteada ao dono pelo nome no comprovante)
     @Scheduled(fixedDelay = 300_000)
     public void pollGmail() {
         log.debug("Polling Gmail...");
@@ -40,8 +43,12 @@ public class SchedulerService {
     // Verificar hora extra a cada 30 minutos (dias úteis)
     @Scheduled(cron = "0 0/30 8-22 * * MON-SAT")
     public void checkOvertimeAlert() {
+        forEachUser("alerta de hora extra", this::checkOvertimeAlert);
+    }
+
+    private void checkOvertimeAlert(Usuario user) {
         LocalDate today = LocalDate.now();
-        Optional<WorkDay> workDayOpt = workDayRepository.findByDate(today);
+        Optional<WorkDay> workDayOpt = workDayRepository.findByUserIdAndDate(user.getId(), today);
         if (workDayOpt.isEmpty()) return;
 
         WorkDay workDay = workDayOpt.get();
@@ -50,13 +57,12 @@ public class SchedulerService {
                 && Boolean.FALSE.equals(workDay.getOvertimeNotified())) {
 
             // Somar total de extras do mês
-            LocalDate now = LocalDate.now();
             Integer totalOvertimeMinutes = workDayRepository
-                    .sumOvertimeMinutesByYearAndMonth(now.getYear(), now.getMonthValue());
+                    .sumOvertimeMinutesByUserIdAndYearAndMonth(user.getId(), today.getYear(), today.getMonthValue());
             BigDecimal totalValue = timeRecordService.calculateOvertimeValue(
-                    totalOvertimeMinutes != null ? totalOvertimeMinutes : 0);
+                    user.getId(), totalOvertimeMinutes != null ? totalOvertimeMinutes : 0);
 
-            whatsAppService.notifyOvertimeStarted(workDay, totalValue);
+            whatsAppService.notifyOvertimeStarted(user, workDay, totalValue);
 
             workDay.setOvertimeNotified(true);
             workDayRepository.save(workDay);
@@ -67,30 +73,49 @@ public class SchedulerService {
     @Scheduled(cron = "0 0 12 * * *")
     public void sendNoonSummary() {
         log.info("Enviando resumo do meio-dia via WhatsApp");
-        whatsAppService.sendDailySummary(buildSummaryMessage());
+        forEachNotifiableUser("resumo do meio-dia", u -> whatsAppService.sendDailySummary(u, buildSummaryMessage(u)));
     }
 
     // Resumo diário às 21h
     @Scheduled(cron = "0 0 21 * * *")
     public void sendEveningSummary() {
         log.info("Enviando resumo noturno via WhatsApp");
-        whatsAppService.sendDailySummary(buildSummaryMessage());
+        forEachNotifiableUser("resumo noturno", u -> whatsAppService.sendDailySummary(u, buildSummaryMessage(u)));
     }
 
     // Recalcular resumo mensal todo dia à meia-noite
     @Scheduled(cron = "0 0 0 * * *")
     public void recalculateMonthly() {
         LocalDate today = LocalDate.now();
-        financeService.recalculateMonthlySummary(today.getMonthValue(), today.getYear());
+        forEachUser("recálculo mensal",
+                u -> financeService.recalculateMonthlySummary(u, today.getMonthValue(), today.getYear()));
         log.info("Resumo mensal recalculado");
     }
 
-    private String buildSummaryMessage() {
+    /** Executa a ação para cada usuário; a falha de um não impede os demais. */
+    private void forEachUser(String jobName, java.util.function.Consumer<Usuario> action) {
+        for (Usuario user : usuarioRepository.findAll()) {
+            try {
+                action.accept(user);
+            } catch (Exception e) {
+                log.error("Erro no job '{}' para o usuário {}: {}", jobName, user.getUsername(), e.getMessage());
+            }
+        }
+    }
+
+    /** Igual a forEachUser, mas pula quem não tem WhatsApp (evita calcular resumo à toa). */
+    private void forEachNotifiableUser(String jobName, java.util.function.Consumer<Usuario> action) {
+        forEachUser(jobName, u -> {
+            if (whatsAppService.resolvePhone(u) != null) action.accept(u);
+        });
+    }
+
+    private String buildSummaryMessage(Usuario user) {
         LocalDate today = LocalDate.now();
-        MonthlySummary summary = financeService.getCurrentMonthSummary();
+        MonthlySummary summary = financeService.getCurrentMonthSummary(user);
 
         // Pontos de hoje
-        List<com.financasponto.entity.TimeRecord> todayRecords = timeRecordService.getTodayRecords();
+        List<com.financasponto.entity.TimeRecord> todayRecords = timeRecordService.getTodayRecords(user.getId());
         StringBuilder pontos = new StringBuilder();
         DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
         if (todayRecords.isEmpty()) {
@@ -102,7 +127,7 @@ public class SchedulerService {
         }
 
         // Horas extras de hoje
-        Optional<WorkDay> todayWorkDay = workDayRepository.findByDate(today);
+        Optional<WorkDay> todayWorkDay = workDayRepository.findByUserIdAndDate(user.getId(), today);
         String overtimeToday = todayWorkDay.map(wd -> {
             int mins = wd.getOvertimeMinutes() != null ? wd.getOvertimeMinutes() : 0;
             return String.format("%dh %02dmin", mins / 60, mins % 60);

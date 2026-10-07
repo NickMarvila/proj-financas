@@ -30,7 +30,7 @@ public class TimeRecordService {
     private int saturdayContractHours;
 
     @Transactional
-    public TimeRecord saveRecord(LocalDateTime timestamp, String origin, Boolean online,
+    public TimeRecord saveRecord(Usuario user, LocalDateTime timestamp, String origin, Boolean online,
                                   String hash, String emailMessageId, String rawText, boolean silent) {
 
         // Evitar duplicatas
@@ -39,14 +39,15 @@ public class TimeRecordService {
             return null;
         }
 
-        // Determinar IN ou OUT baseado na quantidade de batidas do dia
+        // Determinar IN ou OUT baseado na quantidade de batidas do dia DESTE usuário
         LocalDate day = timestamp.toLocalDate();
-        long countToday = timeRecordRepository.countByDate(day.atStartOfDay());
+        long countToday = timeRecordRepository.countByUserIdAndDate(user.getId(), day.atStartOfDay());
         TimeRecord.PunchType type = (countToday % 2 == 0)
                 ? TimeRecord.PunchType.IN
                 : TimeRecord.PunchType.OUT;
 
         TimeRecord record = TimeRecord.builder()
+                .user(user)
                 .timestamp(timestamp)
                 .punchType(type)
                 .origin(origin)
@@ -57,30 +58,31 @@ public class TimeRecordService {
                 .build();
 
         TimeRecord saved = timeRecordRepository.save(record);
-        log.info("Ponto salvo: {} {} ({})", type, timestamp, origin);
+        log.info("Ponto salvo [{}]: {} {} ({})", user.getUsername(), type, timestamp, origin);
 
         // Recalcular o dia de trabalho
-        recalculateWorkDay(day);
+        recalculateWorkDay(user, day);
 
         // Enviar notificação WhatsApp
         if (!silent) {
-            whatsAppService.notifyPunchRegistered(saved);
+            whatsAppService.notifyPunchRegistered(user, saved);
         }
 
         return saved;
     }
 
+    /** Global (não por usuário): o id da mensagem do Gmail é único independente do dono da batida. */
     public boolean isAlreadyProcessed(String emailMessageId) {
         if (emailMessageId == null) return false;
         return timeRecordRepository.findByEmailMessageId(emailMessageId).isPresent();
     }
 
     @Transactional
-    public void recalculateWorkDay(LocalDate date) {
+    public void recalculateWorkDay(Usuario user, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(23, 59, 59);
         List<TimeRecord> records = timeRecordRepository
-                .findByTimestampBetweenOrderByTimestampAsc(startOfDay, endOfDay);
+                .findByUserIdAndTimestampBetweenOrderByTimestampAsc(user.getId(), startOfDay, endOfDay);
 
         if (records.isEmpty()) return;
 
@@ -126,14 +128,14 @@ public class TimeRecordService {
             overtimeMinutes = Math.max(0, workedMinutes - contractMinutes);
         }
 
-        BigDecimal overtimeValue = calculateOvertimeValue(overtimeMinutes);
+        BigDecimal overtimeValue = calculateOvertimeValue(user.getId(), overtimeMinutes);
 
         WorkDay.DayStatus status = overtimeMinutes > 0 ? WorkDay.DayStatus.OVERTIME
                 : workedMinutes >= contractMinutes ? WorkDay.DayStatus.NORMAL
                 : WorkDay.DayStatus.INCOMPLETE;
 
-        WorkDay workDay = workDayRepository.findByDate(date)
-                .orElse(WorkDay.builder().date(date).overtimeNotified(false).build());
+        WorkDay workDay = workDayRepository.findByUserIdAndDate(user.getId(), date)
+                .orElse(WorkDay.builder().user(user).date(date).overtimeNotified(false).build());
 
         workDay.setWorkedMinutes(workedMinutes);
         workDay.setContractMinutes(contractMinutes);
@@ -145,9 +147,9 @@ public class TimeRecordService {
         workDayRepository.save(workDay);
     }
 
-    public BigDecimal calculateOvertimeValue(int overtimeMinutes) {
+    public BigDecimal calculateOvertimeValue(Long userId, int overtimeMinutes) {
         if (overtimeMinutes <= 0) return BigDecimal.ZERO;
-        return salaryConfigRepository.findFirstByActiveTrueOrderByUpdatedAtDesc()
+        return salaryConfigRepository.findFirstByUserIdAndActiveTrueOrderByUpdatedAtDesc(userId)
                 .map(config -> {
                     BigDecimal hourlyRate = config.getBaseSalary()
                             .divide(BigDecimal.valueOf(config.getMonthlyHoursDivisor()), 4, RoundingMode.HALF_UP);
@@ -158,17 +160,18 @@ public class TimeRecordService {
                 .orElse(BigDecimal.ZERO);
     }
 
-    public List<TimeRecord> getTodayRecords() {
+    public List<TimeRecord> getTodayRecords(Long userId) {
         LocalDateTime now = LocalDateTime.now();
-        return timeRecordRepository.findByTimestampBetweenOrderByTimestampAsc(
+        return timeRecordRepository.findByUserIdAndTimestampBetweenOrderByTimestampAsc(
+                userId,
                 now.toLocalDate().atStartOfDay(),
                 now.toLocalDate().atTime(23, 59, 59));
     }
 
-    public List<TimeRecord> getMonthRecords(int year, int month) {
+    public List<TimeRecord> getMonthRecords(Long userId, int year, int month) {
         LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month);
         LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month);
-        return timeRecordRepository.findByTimestampBetweenOrderByTimestampAsc(
-                start.atStartOfDay(), end.atTime(23, 59, 59));
+        return timeRecordRepository.findByUserIdAndTimestampBetweenOrderByTimestampAsc(
+                userId, start.atStartOfDay(), end.atTime(23, 59, 59));
     }
 }

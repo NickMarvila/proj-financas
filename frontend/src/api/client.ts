@@ -28,6 +28,7 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data).then(r => r.data),
+  register: (data: any) => api.post('/auth/register', data).then(r => r.data),
 };
 export const dashboardApi = {
   get: (year?: number, month?: number) => {

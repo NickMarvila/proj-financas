@@ -10,21 +10,22 @@ import java.util.Optional;
 
 public interface WorkDayRepository extends JpaRepository<WorkDay, Long> {
 
-    Optional<WorkDay> findByDate(LocalDate date);
+    Optional<WorkDay> findByUserIdAndDate(Long userId, LocalDate date);
 
-    List<WorkDay> findByDateBetweenOrderByDateDesc(LocalDate start, LocalDate end);
+    List<WorkDay> findByUserIdAndDateBetweenOrderByDateDesc(Long userId, LocalDate start, LocalDate end);
 
-    @Query("SELECT w FROM WorkDay w WHERE YEAR(w.date) = :year AND MONTH(w.date) = :month ORDER BY w.date ASC")
-    List<WorkDay> findByYearAndMonth(@Param("year") int year, @Param("month") int month);
+    @Query("SELECT w FROM WorkDay w WHERE w.user.id = :userId AND YEAR(w.date) = :year AND MONTH(w.date) = :month ORDER BY w.date ASC")
+    List<WorkDay> findByUserIdAndYearAndMonth(@Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
 
-    @Query("SELECT COALESCE(SUM(w.overtimeMinutes), 0) FROM WorkDay w WHERE w.date >= :start AND w.date <= :end")
-    Integer sumOvertimeMinutesByDateBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    @Query("SELECT COALESCE(SUM(w.overtimeMinutes), 0) FROM WorkDay w WHERE w.user.id = :userId AND w.date >= :start AND w.date <= :end")
+    Integer sumOvertimeMinutesByUserIdAndDateBetween(@Param("userId") Long userId, @Param("start") LocalDate start, @Param("end") LocalDate end);
 
-    @Query("SELECT COALESCE(SUM(w.overtimeMinutes), 0) FROM WorkDay w WHERE YEAR(w.date) = :year AND MONTH(w.date) = :month")
-    Integer sumOvertimeMinutesByYearAndMonth(@Param("year") int year, @Param("month") int month);
-    @Query("SELECT COUNT(w) FROM WorkDay w WHERE w.isSaturday = true AND w.workedMinutes > 0 AND w.date >= :start AND w.date <= :end")
-    long countWorkedSaturdaysInCycle(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    @Query("SELECT COALESCE(SUM(w.overtimeMinutes), 0) FROM WorkDay w WHERE w.user.id = :userId AND YEAR(w.date) = :year AND MONTH(w.date) = :month")
+    Integer sumOvertimeMinutesByUserIdAndYearAndMonth(@Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
 
-    @Query("SELECT COUNT(w) FROM WorkDay w WHERE w.isSaturday = true AND w.workedMinutes > 0 AND YEAR(w.date) = :year AND MONTH(w.date) = :month")
-    long countWorkedSaturdaysInMonth(@Param("year") int year, @Param("month") int month);
+    @Query("SELECT COUNT(w) FROM WorkDay w WHERE w.user.id = :userId AND w.isSaturday = true AND w.workedMinutes > 0 AND w.date >= :start AND w.date <= :end")
+    long countWorkedSaturdaysInCycle(@Param("userId") Long userId, @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    @Query("SELECT COUNT(w) FROM WorkDay w WHERE w.user.id = :userId AND w.isSaturday = true AND w.workedMinutes > 0 AND YEAR(w.date) = :year AND MONTH(w.date) = :month")
+    long countWorkedSaturdaysInMonth(@Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
 }
