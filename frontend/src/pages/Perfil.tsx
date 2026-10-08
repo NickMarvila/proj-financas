@@ -239,7 +239,7 @@ export default function Perfil() {
               </div>
             )}
 
-            {status?.hasCredentials && (status.status === 'CONECTADO' || status.status === 'EXPIRADO') && (
+            {status?.hasCredentials && (status.status === 'CONECTADO' || status.status === 'EXPIRED') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   {status.status === 'CONECTADO' ? (
@@ -272,7 +272,7 @@ export default function Perfil() {
                 )}
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                  {status.status === 'EXPIRADO' && (
+                  {status.status === 'EXPIRED' && (
                     <button className="btn btn-primary" onClick={handleConnect}>
                       Reconectar Gmail
                     </button>

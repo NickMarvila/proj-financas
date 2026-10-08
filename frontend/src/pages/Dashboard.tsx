@@ -157,12 +157,12 @@ export default function Dashboard() {
       </div>
 
       {/* Gmail Banner */}
-      {gmailStatus && (gmailStatus.status === 'DESCONECTADO' || gmailStatus.status === 'EXPIRADO') && (
+      {gmailStatus && (gmailStatus.status === 'DESCONECTADO' || gmailStatus.status === 'EXPIRED') && (
         <a href="/perfil" style={{ textDecoration: 'none' }}>
           <div style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <AlertCircle size={20} />
-              <strong>{gmailStatus.status === 'EXPIRADO' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</strong>
+              <strong>{gmailStatus.status === 'EXPIRED' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</strong>
             </div>
             <span style={{ fontSize: '14px', fontWeight: 600, textDecoration: 'underline' }}>Reconectar agora</span>
           </div>

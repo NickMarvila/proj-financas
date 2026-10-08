@@ -77,6 +77,7 @@ public class GmailService {
             String url = flow.newAuthorizationUrl()
                     .setRedirectUri(redirectUri)
                     .setState(state)
+                    .set("prompt", "consent")
                     .build();
             return url;
         } catch (Exception e) {
