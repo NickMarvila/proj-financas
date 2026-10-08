@@ -16,7 +16,7 @@ export default function Perfil() {
 
   const [profile, setProfile] = useState<any>(null);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ employeeName: '', matricula: '', whatsappPhone: '' });
+  const [profileForm, setProfileForm] = useState({ employeeName: '', cpf: '', whatsappPhone: '' });
   
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '' });
@@ -28,7 +28,7 @@ export default function Perfil() {
     try {
       const p = await profileApi.get();
       setProfile(p);
-      setProfileForm({ employeeName: p.employeeName || '', matricula: p.matricula || '', whatsappPhone: p.whatsappPhone || '' });
+      setProfileForm({ employeeName: p.employeeName || '', cpf: p.cpf || '', whatsappPhone: p.whatsappPhone || '' });
     } catch(e) {}
     gmailApi.getStatus().then(setStatus).finally(() => setLoading(false));
   };
@@ -143,8 +143,8 @@ export default function Perfil() {
                 <input className="form-input" value={profileForm.employeeName} onChange={e => setProfileForm({ ...profileForm, employeeName: e.target.value })} />
               </div>
               <div className="form-group">
-                <label className="form-label">Matrícula ou PIS</label>
-                <input className="form-input" value={profileForm.matricula} onChange={e => setProfileForm({ ...profileForm, matricula: e.target.value })} />
+                <label className="form-label">CPF ou PIS (Apenas números)</label>
+                <input className="form-input" value={profileForm.cpf} onChange={e => setProfileForm({ ...profileForm, cpf: e.target.value })} />
               </div>
               <div className="form-group">
                 <label className="form-label">WhatsApp (Ex: 5521999999999)</label>

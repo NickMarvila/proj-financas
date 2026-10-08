@@ -55,15 +55,15 @@ class PunchTextParserTest {
         assertEquals("FACE", punch.origin());
         assertEquals(Boolean.TRUE, punch.online());
         assertEquals("NICOLAS MARVILA DE OLIVEIRA", punch.employeeName());
-        assertEquals("13921929899", punch.matricula());
+        assertEquals("13921929899", punch.cpf());
     }
 
     @Test
-    void extractsMatriculaStrippingLeadingZeros() {
+    void extractsCpfStrippingLeadingZeros() {
         String text = "Marcação: 28/09/2026 18:05:40\nMatrícula: 00024719";
         PunchTextParser.ParsedPunch punch = PunchTextParser.parse(text);
         assertNotNull(punch);
-        assertEquals("24719", punch.matricula());
+        assertEquals("24719", punch.cpf());
     }
 
     @Test

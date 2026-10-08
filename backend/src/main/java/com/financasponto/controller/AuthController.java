@@ -64,10 +64,10 @@ public class AuthController {
                 && usuarioRepository.findByEmployeeNameIgnoreCase(employeeName).isPresent()) {
             return ResponseEntity.badRequest().body("Erro: já existe usuário vinculado a esse nome de colaborador");
         }
-        String matricula = dto.getMatricula() != null ? dto.getMatricula().trim() : null;
-        if (matricula != null && !matricula.isEmpty()
-                && usuarioRepository.findByMatricula(matricula).isPresent()) {
-            return ResponseEntity.badRequest().body("Erro: já existe usuário com esta matrícula");
+        String cpf = dto.getCpf() != null ? dto.getCpf().trim() : null;
+        if (cpf != null && !cpf.isEmpty()
+                && usuarioRepository.findByCpf(cpf).isPresent()) {
+            return ResponseEntity.badRequest().body("Erro: já existe usuário com este CPF");
         }
 
         Usuario.Role role;
@@ -83,7 +83,7 @@ public class AuthController {
         user.setEmployeeName(employeeName == null || employeeName.isEmpty() ? null : employeeName);
         user.setRole(role);
         user.setWhatsappPhone(dto.getWhatsappPhone());
-        user.setMatricula(matricula == null || matricula.isEmpty() ? null : matricula);
+        user.setCpf(cpf == null || cpf.isEmpty() ? null : cpf);
 
         usuarioRepository.save(user);
 
@@ -112,7 +112,7 @@ public class AuthController {
             map.put("id", u.getId());
             map.put("username", u.getUsername());
             map.put("employeeName", u.getEmployeeName());
-            map.put("matricula", u.getMatricula());
+            map.put("cpf", u.getCpf());
             return map;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(users);

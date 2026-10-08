@@ -10,19 +10,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PunchOwnershipPolicyTest {
 
-    private ParsedPunch createPunch(String matricula, String employeeName) {
-        return new ParsedPunch(LocalDateTime.now(), "SISTEMA", true, "hash", employeeName, matricula);
+    private ParsedPunch createPunch(String cpf, String employeeName) {
+        return new ParsedPunch(LocalDateTime.now(), "SISTEMA", true, "hash", employeeName, cpf);
     }
 
-    private Usuario createUser(String matricula, String employeeName) {
+    private Usuario createUser(String cpf, String employeeName) {
         Usuario u = new Usuario();
-        u.setMatricula(matricula);
+        u.setCpf(cpf);
         u.setEmployeeName(employeeName);
         return u;
     }
 
     @Test
-    void aceitaQuandoUsuarioNaoTemMatriculaNemNome() {
+    void aceitaQuandoUsuarioNaoTemCpfNemNome() {
         Usuario user = createUser(null, null);
         ParsedPunch punch = createPunch("123", "João Silva");
         assertTrue(PunchOwnershipPolicy.isOwner(user, punch));
@@ -32,7 +32,7 @@ class PunchOwnershipPolicyTest {
     }
 
     @Test
-    void aceitaQuandoMatriculaBate() {
+    void aceitaQuandoCpfBate() {
         Usuario user = createUser("12345", "Nome Errado");
         ParsedPunch punch = createPunch("12345", "João Silva");
         assertTrue(PunchOwnershipPolicy.isOwner(user, punch));

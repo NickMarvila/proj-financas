@@ -13,17 +13,17 @@ public final class PunchOwnershipPolicy {
     public static boolean isOwner(Usuario user, ParsedPunch punch) {
         if (user == null || punch == null) return false;
 
-        boolean userHasMatricula = user.getMatricula() != null && !user.getMatricula().trim().isEmpty();
+        boolean userHasCpf = user.getCpf() != null && !user.getCpf().trim().isEmpty();
         boolean userHasName = user.getEmployeeName() != null && !user.getEmployeeName().trim().isEmpty();
 
         // 1. Se o usuário não configurou nenhum identificador no perfil, aceitamos qualquer comprovante da caixa dele
-        if (!userHasMatricula && !userHasName) {
+        if (!userHasCpf && !userHasName) {
             return true;
         }
 
-        // 2. Se a matrícula/PIS do PDF bate com a matrícula do usuário
-        if (userHasMatricula && punch.matricula() != null) {
-            if (user.getMatricula().trim().equalsIgnoreCase(punch.matricula().trim())) {
+        // 2. Se o CPF do PDF bate com o CPF do usuário
+        if (userHasCpf && punch.cpf() != null) {
+            if (user.getCpf().trim().equalsIgnoreCase(punch.cpf().trim())) {
                 return true;
             }
         }

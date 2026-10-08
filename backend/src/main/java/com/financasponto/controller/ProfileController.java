@@ -28,7 +28,7 @@ public class ProfileController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("username", u.getUsername());
         body.put("employeeName", u.getEmployeeName());
-        body.put("matricula", u.getMatricula());
+        body.put("cpf", u.getCpf());
         body.put("whatsappPhone", u.getWhatsappPhone());
         body.put("role", u.getRole() != null ? u.getRole().name() : Usuario.Role.USER.name());
         return ResponseEntity.ok(body);
@@ -37,7 +37,7 @@ public class ProfileController {
     @Data
     public static class ProfileUpdateDTO {
         private String employeeName;
-        private String matricula;
+        private String cpf;
         private String whatsappPhone;
     }
 
@@ -53,16 +53,16 @@ public class ProfileController {
             }
         }
 
-        String matricula = dto.getMatricula() != null ? dto.getMatricula().trim() : null;
-        if (matricula != null && !matricula.isEmpty() && !matricula.equalsIgnoreCase(user.getMatricula())) {
-            Optional<Usuario> existing = usuarioRepository.findByMatricula(matricula);
+        String cpf = dto.getCpf() != null ? dto.getCpf().trim() : null;
+        if (cpf != null && !cpf.isEmpty() && !cpf.equalsIgnoreCase(user.getCpf())) {
+            Optional<Usuario> existing = usuarioRepository.findByCpf(cpf);
             if (existing.isPresent() && !existing.get().getId().equals(user.getId())) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Matrícula/PIS já vinculada a outro usuário."));
+                return ResponseEntity.badRequest().body(Map.of("message", "CPF já vinculado a outro usuário."));
             }
         }
 
         user.setEmployeeName(employeeName == null || employeeName.isEmpty() ? null : employeeName);
-        user.setMatricula(matricula == null || matricula.isEmpty() ? null : matricula);
+        user.setCpf(cpf == null || cpf.isEmpty() ? null : cpf);
         user.setWhatsappPhone(dto.getWhatsappPhone() != null && !dto.getWhatsappPhone().trim().isEmpty() ? dto.getWhatsappPhone().trim() : null);
 
         usuarioRepository.save(user);

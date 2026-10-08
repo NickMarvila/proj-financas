@@ -193,7 +193,7 @@ export default function Configuracoes() {
               username: (form.elements.namedItem('username') as HTMLInputElement).value,
               password: (form.elements.namedItem('password') as HTMLInputElement).value,
               employeeName: (form.elements.namedItem('employeeName') as HTMLInputElement).value,
-              matricula: (form.elements.namedItem('matricula') as HTMLInputElement).value,
+              cpf: (form.elements.namedItem('cpf') as HTMLInputElement).value,
               whatsappPhone: (form.elements.namedItem('whatsappPhone') as HTMLInputElement).value,
               role: (form.elements.namedItem('role') as HTMLSelectElement).value,
             };
@@ -219,8 +219,8 @@ export default function Configuracoes() {
               <input name="employeeName" className="form-input" placeholder="JOAO DA SILVA" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Matrícula (Sem zeros a esquerda - Obrigatório para ponto autom.)</label>
-              <input name="matricula" className="form-input" placeholder="ex: 24719" />
+              <label className="form-label">CPF ou PIS (Apenas números - Obrigatório para ponto autom.)</label>
+              <input name="cpf" className="form-input" placeholder="ex: 19553186700" />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">WhatsApp (Opcional, com DDD)</label>

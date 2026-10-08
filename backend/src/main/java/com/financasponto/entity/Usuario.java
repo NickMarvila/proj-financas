@@ -27,7 +27,7 @@ public class Usuario {
     private String employeeName;
 
     @Column(unique = true)
-    private String matricula;
+    private String cpf;
 
     /** Anulável no banco: o ddl-auto não consegue criar coluna NOT NULL em tabela com dados. Null = USER. */
     @Enumerated(EnumType.STRING)
