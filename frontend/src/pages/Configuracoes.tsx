@@ -16,6 +16,7 @@ export default function Configuracoes() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authSuccess, setAuthSuccess] = useState<boolean | null>(null);
   const [generatingQr, setGeneratingQr] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [users, setUsers] = useState<any[]>([]);
   const [advStartDate, setAdvStartDate] = useState('');
@@ -25,6 +26,12 @@ export default function Configuracoes() {
   const [advSyncing, setAdvSyncing] = useState(false);
 
   const loadStatus = async () => {
+    try {
+      const { authApi } = await import('../api/client');
+      const u = await authApi.me();
+      setIsAdmin(u.role === 'ADMIN');
+    } catch(e) {}
+
     const [g, w] = await Promise.all([
       gmailApi.getStatus().catch(() => null),
       whatsAppApi.getStatus().catch(() => '{}'),
@@ -148,12 +155,20 @@ export default function Configuracoes() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Configurações</h1>
-        <p className="page-subtitle">Integrações com Gmail e WhatsApp</p>
+        <p className="page-subtitle">Opções e Integrações</p>
       </div>
 
-      <div className="grid-2">
-        {/* Gmail */}
+      {!isAdmin ? (
         <div className="card">
+          <div className="empty-state" style={{ padding: '40px 0' }}>
+            <p>Seu perfil não possui acesso de Administrador para realizar integrações.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="grid-2">
+            {/* Gmail */}
+            <div className="card">
           <div className="section-title"><span className="dot" />Gmail Integration</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <StatusRow label="credentials.json" ok={gmailStatus?.hasCredentials ?? false}
@@ -373,6 +388,8 @@ export default function Configuracoes() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
