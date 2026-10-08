@@ -55,6 +55,28 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateStateToken(Long uid, String syncFrom) {
+        return Jwts.builder()
+                .claim("purpose", "gmail-connect")
+                .claim("uid", uid)
+                .claim("syncFrom", syncFrom)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 10)) // 10 minutes
+                .signWith(key)
+                .compact();
+    }
+
+    public Claims validateStateTokenAndGetClaims(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        if (isTokenExpired(token)) {
+            throw new IllegalArgumentException("Token expirado");
+        }
+        if (!"gmail-connect".equals(claims.get("purpose"))) {
+            throw new IllegalArgumentException("Propósito inválido");
+        }
+        return claims;
+    }
+
     public Boolean validateToken(String token, String username) {
         final String tokenUsername = getUsernameFromToken(token);
         return (tokenUsername.equals(username) && !isTokenExpired(token));

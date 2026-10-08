@@ -50,51 +50,7 @@ export default function Configuracoes() {
 
   useEffect(() => { loadStatus(); loadUsers(); }, []);
 
-  const getGmailAuthUrl = async () => {
-    setAuthLoading(true);
-    try {
-      const r = await gmailApi.getAuthUrl();
-      setAuthUrl(r.authUrl);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
 
-  const submitCode = async () => {
-    if (!authCode.trim()) return;
-    setAuthLoading(true);
-    try {
-      const r = await gmailApi.submitCode(authCode);
-      setAuthSuccess(r.success);
-      if (r.success) { setAuthUrl(''); setAuthCode(''); await loadStatus(); }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const syncGmail = async () => {
-    setSyncing(true);
-    try {
-      const r = await gmailApi.sync();
-      alert(`${r.processed} e-mail(s) processados`);
-    } catch (e: any) {
-      alert(`Erro ao sincronizar: ${e.response?.data?.message || e.message}`);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const syncHistory = async () => {
-    setSyncing(true);
-    try {
-      const r = await gmailApi.syncHistory(historyDate);
-      alert(`${r.processed} e-mail(s) do histórico processados`);
-    } catch (e: any) {
-      alert(`Erro ao sincronizar histórico: ${e.response?.data?.message || e.message}`);
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const createWaInstance = async () => {
     setGeneratingQr(true);
@@ -131,7 +87,8 @@ export default function Configuracoes() {
     // Assegura que o timezone não mude a data selecionada
     const current = new Date(advStartDate + 'T12:00:00');
     const end = new Date(advEndDate + 'T12:00:00');
-    const userId = advUserId ? parseInt(advUserId) : undefined;
+    if (!advUserId) return alert("Selecione um usuário alvo para sincronizar");
+    const userId = parseInt(advUserId);
 
     while (current <= end) {
       const dateStr = current.toISOString().split('T')[0];
@@ -144,7 +101,7 @@ export default function Configuracoes() {
         const r = await gmailApi.syncAdvanced({ startDate: dateStr, endDate: nextDateStr, userId });
         setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: `${r.processed} batidas`, status: 'success' } : l));
       } catch (e: any) {
-        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: `Erro`, status: 'error' } : l));
+        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: e.response?.data?.message || `Erro`, status: 'error' } : l));
       }
       current.setDate(current.getDate() + 1);
     }
@@ -173,68 +130,12 @@ export default function Configuracoes() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <StatusRow label="credentials.json" ok={gmailStatus?.hasCredentials ?? false}
               okText="Encontrado" failText="Não encontrado" />
-            <StatusRow label="OAuth2 Token" ok={gmailStatus?.isAuthenticated ?? false}
-              okText="Autenticado" failText="Não autenticado" />
-
-            {!gmailStatus?.isAuthenticated && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ padding: 14, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>Como autorizar o Gmail:</strong><br />
-                  1. Clique em "Gerar URL de Autorização"<br />
-                  2. Abra o link no seu navegador, faça login e clique em "Permitir"<br />
-                  3. A página vai dar erro (localhost:8888) — <strong>Isso é normal!</strong><br />
-                  4. Copie o <strong>código</strong> que está na barra de endereço (ex: <code>?code=4/0A...</code>)<br />
-                  5. Cole o código abaixo e clique em "Confirmar"
-                </div>
-
-                <button id="btn-gmail-auth-url" className="btn btn-primary" onClick={getGmailAuthUrl} disabled={authLoading}>
-                  {authLoading ? <><span className="loading-spinner" style={{ width: 14, height: 14 }} /> Gerando...</> : '🔑 Gerar URL de Autorização'}
-                </button>
-
-                {authUrl && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 'var(--radius-sm)', fontSize: 12, wordBreak: 'break-all' }}>
-                      <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>URL de autorização:</div>
-                      <a href={authUrl} target="_blank" rel="noopener" style={{ color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <ExternalLink size={12} /> Abrir no navegador
-                      </a>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Cole o código aqui</label>
-                      <input id="input-gmail-code" className="form-input" placeholder="4/0AXO..."
-                        value={authCode} onChange={e => setAuthCode(e.target.value)} />
-                    </div>
-                    <button id="btn-gmail-submit-code" className="btn btn-primary" onClick={submitCode} disabled={authLoading || !authCode}>
-                      ✅ Confirmar e autenticar
-                    </button>
-                  </div>
-                )}
-
-                {authSuccess === false && (
-                  <div style={{ color: 'var(--accent-red)', fontSize: 13 }}>❌ Código inválido. Tente novamente.</div>
-                )}
-                {authSuccess === true && (
-                  <div style={{ color: 'var(--accent-green)', fontSize: 13 }}>✅ Gmail autenticado com sucesso!</div>
-                )}
-              </div>
-            )}
-
-            {gmailStatus?.isAuthenticated && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <button id="btn-sync-gmail-cfg" className="btn btn-primary" onClick={syncGmail} disabled={syncing}>
-                  <RefreshCw size={15} />
-                  {syncing ? 'Sincronizando...' : 'Sincronizar Novos E-mails'}
-                </button>
-                <div style={{ padding: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sincronizar histórico a partir de:</div>
-                  <input type="date" className="form-input" value={historyDate} onChange={e => setHistoryDate(e.target.value)} />
-                  <button id="btn-sync-history-gmail-cfg" className="btn btn-secondary" onClick={syncHistory} disabled={syncing}>
-                    <RefreshCw size={15} />
-                    Sincronizar Histórico
-                  </button>
-                </div>
-              </div>
-            )}
+            
+            <div style={{ padding: 14, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Mudança na Integração Gmail:</strong><br />
+              A partir de agora, cada usuário deve conectar seu próprio e-mail do Gmail na página <strong>Meu Perfil</strong>. 
+              As credenciais globais cadastradas aqui no servidor servem apenas para habilitar o aplicativo OAuth2 do Google.
+            </div>
           </div>
         </div>
 

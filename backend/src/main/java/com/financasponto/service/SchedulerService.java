@@ -28,15 +28,21 @@ public class SchedulerService {
     private final TimeRecordService timeRecordService;
     private final UsuarioRepository usuarioRepository;
 
-    // Polling Gmail a cada 5 minutos (caixa única; cada batida é roteada ao dono pelo nome no comprovante)
+    // Polling Gmail a cada 5 minutos
     @Scheduled(fixedDelay = 300_000)
     public void pollGmail() {
-        log.debug("Polling Gmail...");
-        try {
-            int count = gmailService.pollAndProcess(false, null);
-            if (count > 0) log.info("Processados {} e-mail(is) de ponto", count);
-        } catch (Exception e) {
-            log.error("Erro no polling do Gmail: {}", e.getMessage());
+        log.debug("Polling Gmail para usuários conectados...");
+        for (Usuario user : usuarioRepository.findAll()) {
+            if ("CONECTADO".equals(user.getGmailStatus())) {
+                try {
+                    int count = gmailService.syncUser(user);
+                    if (count > 0) {
+                        log.info("Processados {} e-mail(is) de ponto para o usuário {}", count, user.getUsername());
+                    }
+                } catch (Exception e) {
+                    log.error("Erro no polling do Gmail para {}: {}", user.getUsername(), e.getMessage());
+                }
+            }
         }
     }
 

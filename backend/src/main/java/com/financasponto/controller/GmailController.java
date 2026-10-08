@@ -14,49 +14,68 @@ import java.util.Map;
 public class GmailController {
 
     private final GmailService gmailService;
+    private final com.financasponto.repository.UsuarioRepository usuarioRepository;
 
-    /** Retorna a URL que o usuário deve abrir no browser para autorizar */
-    @GetMapping("/auth")
-    public ResponseEntity<Map<String, String>> getAuthUrl() {
-        String url = gmailService.getAuthorizationUrl();
+    private com.financasponto.entity.Usuario getLoggedUser(java.security.Principal principal) {
+        return usuarioRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+    }
+
+    @PostMapping("/connect")
+    public ResponseEntity<Map<String, String>> connect(@RequestBody Map<String, String> body, java.security.Principal principal) {
+        com.financasponto.entity.Usuario user = getLoggedUser(principal);
+        String syncFrom = body.get("syncFrom");
+        String url = gmailService.getAuthorizationUrl(user.getId(), syncFrom);
         if (url == null) return ResponseEntity.internalServerError()
-                .body(Map.of("error", "credentials.json não encontrado"));
+                .body(Map.of("error", "Erro ao gerar URL. Verifique as credenciais."));
         return ResponseEntity.ok(Map.of("authUrl", url));
     }
 
-    /** Recebe o código colado pelo usuário e troca pelo token */
-    @PostMapping("/code")
-    public ResponseEntity<Map<String, Object>> submitCode(@RequestBody Map<String, String> body) {
-        String code = body.get("code");
-        if (code == null || code.isBlank())
-            return ResponseEntity.badRequest().body(Map.of("error", "código inválido"));
-        boolean ok = gmailService.exchangeCode(code.trim());
-        return ResponseEntity.ok(Map.of("success", ok));
-    }
-
-    @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getStatus() {
-        return ResponseEntity.ok(Map.of(
-            "hasCredentials", gmailService.hasCredentials(),
-            "isAuthenticated", gmailService.isAuthenticated()
-        ));
-    }
-
-    @PostMapping("/sync")
-    public ResponseEntity<Map<String, Object>> syncNow() {
+    @GetMapping("/callback")
+    public org.springframework.web.servlet.view.RedirectView callback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error) {
+        
+        if (error != null) {
+            return new org.springframework.web.servlet.view.RedirectView("/perfil?gmail=erro&motivo=" + error);
+        }
+        if (code == null || state == null) {
+            return new org.springframework.web.servlet.view.RedirectView("/perfil?gmail=erro&motivo=parametros_invalidos");
+        }
+        
         try {
-            int count = gmailService.pollAndProcess(false, null);
-            return ResponseEntity.ok(Map.of("processed", count));
+            gmailService.exchangeCode(code, state);
+            return new org.springframework.web.servlet.view.RedirectView("/perfil?gmail=ok");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return new org.springframework.web.servlet.view.RedirectView("/perfil?gmail=erro&motivo=falha_auth");
         }
     }
 
-    @PostMapping("/sync-history")
-    public ResponseEntity<Map<String, Object>> syncHistory(@RequestBody(required = false) Map<String, String> body) {
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getStatus(java.security.Principal principal) {
+        com.financasponto.entity.Usuario user = getLoggedUser(principal);
+        return ResponseEntity.ok(Map.of(
+            "hasCredentials", gmailService.hasCredentials(),
+            "status", user.getGmailStatus() != null ? user.getGmailStatus() : "DESCONECTADO",
+            "email", user.getGmailEmail() != null ? user.getGmailEmail() : "",
+            "syncFrom", user.getGmailSyncFrom() != null ? user.getGmailSyncFrom() : "",
+            "lastSync", user.getGmailLastSync() != null ? user.getGmailLastSync().toString() : ""
+        ));
+    }
+
+    @PostMapping("/disconnect")
+    public ResponseEntity<Map<String, Object>> disconnect(java.security.Principal principal) {
+        com.financasponto.entity.Usuario user = getLoggedUser(principal);
+        gmailService.disconnect(user);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/sync")
+    public ResponseEntity<Map<String, Object>> syncNow(java.security.Principal principal) {
         try {
-            String afterDate = body != null ? body.get("afterDate") : null;
-            int count = gmailService.pollAndProcess(true, afterDate);
+            com.financasponto.entity.Usuario user = getLoggedUser(principal);
+            int count = gmailService.syncUser(user);
             return ResponseEntity.ok(Map.of("processed", count));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -66,7 +85,20 @@ public class GmailController {
     @PostMapping("/sync-advanced")
     public ResponseEntity<Map<String, Object>> syncAdvanced(@RequestBody SyncAdvancedDTO dto) {
         try {
-            int count = gmailService.pollAdvanced(dto.getStartDate(), dto.getEndDate(), dto.getUserId());
+            if (dto.getUserId() == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "userId é obrigatório"));
+            }
+            com.financasponto.entity.Usuario targetUser = usuarioRepository.findById(dto.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Usuário alvo não encontrado"));
+            
+            if (!"CONECTADO".equals(targetUser.getGmailStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Usuário alvo não está com o Gmail conectado."));
+            }
+
+            java.time.LocalDate start = java.time.LocalDate.parse(dto.getStartDate());
+            java.time.LocalDate end = java.time.LocalDate.parse(dto.getEndDate());
+            
+            int count = gmailService.syncUserPeriod(targetUser, start, end);
             return ResponseEntity.ok(Map.of("processed", count));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

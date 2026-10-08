@@ -46,7 +46,7 @@ public class SecurityConfig {
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Swagger
                 // Cadastro de usuários e integrações compartilhadas (caixa Gmail única, instância WhatsApp única): só ADMIN
                 .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")
-                .requestMatchers("/api/gmail/auth", "/api/gmail/code").hasRole("ADMIN")
+                .requestMatchers("/api/gmail/callback").permitAll()
                 .requestMatchers("/api/whatsapp/instance/**", "/api/whatsapp/qrcode").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

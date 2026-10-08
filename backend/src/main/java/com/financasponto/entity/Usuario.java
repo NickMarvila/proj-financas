@@ -37,6 +37,18 @@ public class Usuario {
     @Column(name = "whatsapp_phone")
     private String whatsappPhone;
 
+    @Column(name = "gmail_email")
+    private String gmailEmail;
+
+    @Column(name = "gmail_status")
+    private String gmailStatus;
+
+    @Column(name = "gmail_sync_from")
+    private String gmailSyncFrom;
+
+    @Column(name = "gmail_last_sync")
+    private java.time.LocalDateTime gmailLastSync;
+
     public boolean isAdmin() {
         return role == Role.ADMIN;
     }

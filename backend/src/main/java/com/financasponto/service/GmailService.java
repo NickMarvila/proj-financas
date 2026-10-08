@@ -44,13 +44,15 @@ public class GmailService {
 
     private final TimeRecordService timeRecordService;
     private final UsuarioRepository usuarioRepository;
+    private final com.financasponto.security.JwtUtil jwtUtil;
+
+    @Value("${app.gmail.redirect-uri:https://pontonick.duckdns.org/api/gmail/callback}")
+    private String redirectUri;
 
     private static final List<String> SCOPES = List.of(
-            GmailScopes.GMAIL_READONLY,
-            GmailScopes.GMAIL_MODIFY
+            GmailScopes.GMAIL_READONLY
     );
     private static final GsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-    private static final String REDIRECT_URI = "http://localhost:8888/Callback";
 
     private GoogleAuthorizationCodeFlow buildFlow() throws Exception {
         Path credFile = Paths.get(credentialsPath);
@@ -68,13 +70,14 @@ public class GmailService {
     }
 
     /** Retorna URL para o usuário autorizar no browser e obter o código. */
-    public String getAuthorizationUrl() {
+    public String getAuthorizationUrl(Long uid, String syncFrom) {
         try {
             GoogleAuthorizationCodeFlow flow = buildFlow();
+            String state = jwtUtil.generateStateToken(uid, syncFrom);
             String url = flow.newAuthorizationUrl()
-                    .setRedirectUri(REDIRECT_URI)
+                    .setRedirectUri(redirectUri)
+                    .setState(state)
                     .build();
-            log.info("\n\n========== AUTORIZAÇÃO GMAIL ==========\nAbra esta URL no navegador:\n{}\n=======================================\n", url);
             return url;
         } catch (Exception e) {
             log.error("Erro ao gerar URL de autenticação: {}", e.getMessage());
@@ -83,28 +86,74 @@ public class GmailService {
     }
 
     /** Troca o código de autorização pelo token e salva. */
-    public boolean exchangeCode(String code) {
+    public boolean exchangeCode(String code, String state) {
         try {
+            io.jsonwebtoken.Claims claims = jwtUtil.validateStateTokenAndGetClaims(state);
+            Long uid = claims.get("uid", Long.class);
+            String syncFrom = claims.get("syncFrom", String.class);
+
+            Usuario user = usuarioRepository.findById(uid)
+                    .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
             GoogleAuthorizationCodeFlow flow = buildFlow();
             GoogleTokenResponse tokenResponse = flow.newTokenRequest(code)
-                    .setRedirectUri(REDIRECT_URI)
+                    .setRedirectUri(redirectUri)
                     .execute();
-            flow.createAndStoreCredential(tokenResponse, "user");
-            log.info("✅ Gmail autenticado com sucesso!");
+            
+            String userIdStr = "user-" + uid;
+            flow.createAndStoreCredential(tokenResponse, userIdStr);
+
+            Credential credential = flow.loadCredential(userIdStr);
+            NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            Gmail service = new Gmail.Builder(httpTransport, JSON_FACTORY, credential)
+                    .setApplicationName("FinançasPonto")
+                    .build();
+            Profile profile = service.users().getProfile("me").execute();
+
+            user.setGmailEmail(profile.getEmailAddress());
+            user.setGmailStatus("CONECTADO");
+            user.setGmailSyncFrom(syncFrom);
+            usuarioRepository.save(user);
+
+            log.info("✅ Gmail autenticado com sucesso para o usuário {}", uid);
             return true;
         } catch (Exception e) {
             log.error("Erro ao trocar código: {}", e.getMessage());
-            return false;
+            throw new RuntimeException("Falha na autenticação Gmail", e);
         }
     }
 
-    private Gmail getGmailService() throws Exception {
+    public void disconnect(Usuario user) {
+        try {
+            GoogleAuthorizationCodeFlow flow = buildFlow();
+            String userIdStr = "user-" + user.getId();
+            Credential credential = flow.loadCredential(userIdStr);
+            if (credential != null) {
+                try {
+                    NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+                    com.google.api.client.http.GenericUrl url = new com.google.api.client.http.GenericUrl("https://oauth2.googleapis.com/revoke?token=" + credential.getRefreshToken());
+                    httpTransport.createRequestFactory().buildPostRequest(url, null).execute();
+                } catch (Exception e) {
+                    log.warn("Não foi possível revogar token no Google para o usuário {}", user.getId());
+                }
+                flow.getCredentialDataStore().delete(userIdStr);
+            }
+            user.setGmailEmail(null);
+            user.setGmailStatus("DESCONECTADO");
+            user.setGmailSyncFrom(null);
+            user.setGmailLastSync(null);
+            usuarioRepository.save(user);
+        } catch (Exception e) {
+            log.error("Erro ao desconectar Gmail do usuário {}: {}", user.getId(), e.getMessage());
+            throw new RuntimeException("Erro ao desconectar Gmail", e);
+        }
+    }
+
+    private Gmail getGmailService(String userIdStr) throws Exception {
         GoogleAuthorizationCodeFlow flow = buildFlow();
-        Credential credential = flow.loadCredential("user");
+        Credential credential = flow.loadCredential(userIdStr);
         if (credential == null || credential.getRefreshToken() == null) {
-            String authUrl = getAuthorizationUrl();
-            throw new IllegalStateException(
-                "Gmail não autenticado. Acesse: POST /api/gmail/auth para obter a URL e depois POST /api/gmail/code com o código.");
+            throw new IllegalStateException("Gmail não autenticado para " + userIdStr);
         }
         NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         return new Gmail.Builder(httpTransport, JSON_FACTORY, credential)
@@ -126,134 +175,134 @@ public class GmailService {
         return Files.exists(Paths.get(credentialsPath));
     }
 
-    public int pollAndProcess(boolean syncHistory, String afterDate) throws Exception {
-        if (!hasCredentials()) {
-            log.warn("credentials.json não encontrado, pulando polling Gmail");
+    public int syncUser(Usuario user) {
+        if (!"CONECTADO".equals(user.getGmailStatus())) return 0;
+        try {
+            Gmail service = getGmailService("user-" + user.getId());
+            java.time.LocalDate syncFrom = null;
+            if (user.getGmailSyncFrom() != null && !user.getGmailSyncFrom().isBlank()) {
+                syncFrom = java.time.LocalDate.parse(user.getGmailSyncFrom());
+            }
+            String query = com.financasponto.utils.GmailQueryBuilder.buildIncrementalQuery(user.getGmailLastSync(), syncFrom);
+            
+            java.time.LocalDateTime syncStartTime = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Sao_Paulo"));
+            int processed = processMessagesForUser(service, user, query, false);
+            
+            user.setGmailLastSync(syncStartTime);
+            usuarioRepository.save(user);
+            return processed;
+        } catch (Exception e) {
+            handleSyncError(e, user);
             return 0;
         }
-        Gmail service = getGmailService();
-        String query = "from:" + pollSender + (syncHistory ? "" : " is:unread");
-        if (syncHistory && afterDate != null && !afterDate.isBlank()) {
-            query += " after:" + afterDate.replace("-", "/"); // Gmail search uses YYYY/MM/DD
-        }
-        
-        ListMessagesResponse response = service.users().messages()
-                .list(gmailUser)
-                .setQ(query)
-                .execute();
-
-        return processMessages(service, response.getMessages(), syncHistory);
     }
 
-    public int pollAdvanced(String startDate, String endDate, Long userId) throws Exception {
-        if (!hasCredentials()) return 0;
-        Gmail service = getGmailService();
-        String query = "from:" + pollSender;
-        if (startDate != null && !startDate.isBlank()) {
-            query += " after:" + startDate.replace("-", "/");
+    public int syncUserPeriod(Usuario user, java.time.LocalDate startDate, java.time.LocalDate endDate) throws Exception {
+        if (!"CONECTADO".equals(user.getGmailStatus())) {
+            throw new IllegalArgumentException("Usuário não está conectado ao Gmail");
         }
-        if (endDate != null && !endDate.isBlank()) {
-            query += " before:" + endDate.replace("-", "/");
+        try {
+            Gmail service = getGmailService("user-" + user.getId());
+            String query = com.financasponto.utils.GmailQueryBuilder.buildPeriodQuery(startDate, endDate);
+            return processMessagesForUser(service, user, query, true);
+        } catch (Exception e) {
+            handleSyncError(e, user);
+            throw e;
         }
-        if (userId != null) {
-            Optional<Usuario> userOpt = usuarioRepository.findById(userId);
-            if (userOpt.isPresent()) {
-                Usuario user = userOpt.get();
-                if (user.getMatricula() != null && !user.getMatricula().isBlank()) {
-                    query += " \"" + user.getMatricula() + "\"";
-                } else if (user.getEmployeeName() != null && !user.getEmployeeName().isBlank()) {
-                    query += " \"" + user.getEmployeeName() + "\"";
+    }
+
+    private void handleSyncError(Exception e, Usuario user) {
+        if (e instanceof com.google.api.client.auth.oauth2.TokenResponseException) {
+            if ("invalid_grant".equals(((com.google.api.client.auth.oauth2.TokenResponseException) e).getDetails().getError())) {
+                user.setGmailStatus("EXPIRED");
+                usuarioRepository.save(user);
+                log.warn("Token expirado/inválido para usuário {}", user.getId());
+                return;
+            }
+        } else if (e instanceof IllegalStateException && e.getMessage().contains("não autenticado")) {
+            user.setGmailStatus("EXPIRED");
+            usuarioRepository.save(user);
+            return;
+        }
+        log.error("Erro ao sincronizar usuário {}: {}", user.getId(), e.getMessage());
+    }
+
+    private int processMessagesForUser(Gmail service, Usuario user, String query, boolean syncHistory) throws Exception {
+        int totalProcessed = 0;
+        String pageToken = null;
+
+        do {
+            ListMessagesResponse response = service.users().messages()
+                    .list("me")
+                    .setQ(query)
+                    .setPageToken(pageToken)
+                    .execute();
+
+            List<Message> messages = response.getMessages();
+            if (messages == null || messages.isEmpty()) {
+                break;
+            }
+
+            for (Message msgRef : messages) {
+                if (timeRecordService.isAlreadyProcessed(msgRef.getId())) {
+                    continue;
                 }
-            }
-        }
-        
-        log.info("Advanced Poll Query: {}", query);
-        ListMessagesResponse response = service.users().messages()
-                .list(gmailUser)
-                .setQ(query)
-                .execute();
 
-        return processMessages(service, response.getMessages(), true);
-    }
+                int maxRetries = 3;
+                int retryCount = 0;
+                boolean success = false;
 
-    private int processMessages(Gmail service, List<Message> messages, boolean syncHistory) throws Exception {
-        int processed = 0;
-        if (messages == null || messages.isEmpty()) {
-            log.debug("Nenhum e-mail novo de {}", pollSender);
-            return 0;
-        }
+                while (retryCount < maxRetries && !success) {
+                    try {
+                        Message message = service.users().messages()
+                                .get("me", msgRef.getId())
+                                .setFormat("full")
+                                .execute();
 
-        for (Message msgRef : messages) {
-            // Se já temos no banco, nem gasta cota da API perguntando pro Google o corpo do email!
-            if (timeRecordService.isAlreadyProcessed(msgRef.getId())) {
-                log.info("Email {} já processado, pulando leitura.", msgRef.getId());
-                continue;
-            }
-
-            int maxRetries = 3;
-            int retryCount = 0;
-            boolean success = false;
-
-            while (retryCount < maxRetries && !success) {
-                try {
-                    Message message = service.users().messages()
-                            .get(gmailUser, msgRef.getId())
-                            .setFormat("full")
-                            .execute();
-
-                    String extracted = extractTextFromMessage(service, message);
-                    PunchTextParser.ParsedPunch punch = PunchTextParser.parse(extracted);
-                    if (punch != null) {
-                        Optional<Usuario> owner = resolveOwner(punch);
-                        if (owner.isPresent()) {
-                            TimeRecord saved = timeRecordService.saveRecord(owner.get(),
-                                    punch.timestamp(), punch.origin(), punch.online(),
-                                    punch.hash(), message.getId(), extracted, syncHistory);
-                            if (saved != null) processed++;
+                        String extracted = extractTextFromMessage(service, message);
+                        PunchTextParser.ParsedPunch punch = PunchTextParser.parse(extracted);
+                        if (punch != null) {
+                            if (com.financasponto.utils.PunchOwnershipPolicy.isOwner(user, punch)) {
+                                TimeRecord saved = timeRecordService.saveRecord(user,
+                                        punch.timestamp(), punch.origin(), punch.online(),
+                                        punch.hash(), message.getId(), extracted, syncHistory);
+                                if (saved != null) totalProcessed++;
+                            } else {
+                                log.warn("Batida ignorada: não pertence ao usuário {}", user.getId());
+                            }
+                        }
+                        success = true;
+                    } catch (Exception e) {
+                        log.warn("Erro ao processar email {} (tentativa {}/{}): {}", 
+                                 msgRef.getId(), retryCount + 1, maxRetries, e.getMessage());
+                        
+                        if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
+                            retryCount++;
+                            if (retryCount < maxRetries) {
+                                long backoff = 5000L * retryCount;
+                                java.lang.Thread.sleep(backoff);
+                            }
                         } else {
-                            // Marcamos como lido mesmo assim para não reprocessar (e gastar cota) a cada 5 min.
-                            // Após cadastrar o colaborador, a sincronização de histórico importa essas batidas.
-                            log.warn("Batida ignorada: colaborador '{}' não está vinculado a nenhum usuário (email {})",
-                                    punch.employeeName(), message.getId());
+                            break; 
                         }
-                        // Marcar como lido
-                        ModifyMessageRequest markRead = new ModifyMessageRequest()
-                                .setRemoveLabelIds(List.of("UNREAD"));
-                        service.users().messages().modify(gmailUser, message.getId(), markRead).execute();
-                    }
-                    success = true; // Message fully processed without exceptions
-                } catch (Exception e) {
-                    log.warn("Erro ao processar email {} (tentativa {}/{}): {}", 
-                             msgRef.getId(), retryCount + 1, maxRetries, e.getMessage());
-                    
-                    if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
-                        retryCount++;
-                        if (retryCount < maxRetries) {
-                            long backoff = 5000L * retryCount;
-                            log.info("Rate limit atingido. Aguardando {}ms antes de tentar novamente...", backoff);
-                            java.lang.Thread.sleep(backoff);
-                        }
-                    } else {
-                        // Se for outro erro, não é rate limit, interrompe as tentativas deste email
-                        break; 
                     }
                 }
+                java.lang.Thread.sleep(syncHistory ? 1000 : 300);
             }
-            // Anti Rate-Limit baseline (evitar Quota Exceeded 403)
-            java.lang.Thread.sleep(syncHistory ? 1000 : 300);
-        }
-        return processed;
+            pageToken = response.getNextPageToken();
+        } while (pageToken != null);
+
+        return totalProcessed;
     }
 
     private String extractTextFromMessage(Gmail service, Message message) throws Exception {
-        // Tentar extrair de anexos primeiro (PDF ou TXT)
         if (message.getPayload() != null && message.getPayload().getParts() != null) {
             for (MessagePart part : message.getPayload().getParts()) {
                 if (part.getFilename() != null && !part.getFilename().isEmpty()) {
                     String attachmentId = part.getBody().getAttachmentId();
                     if (attachmentId != null) {
                         MessagePartBody attachment = service.users().messages().attachments()
-                                .get(gmailUser, message.getId(), attachmentId).execute();
+                                .get("me", message.getId(), attachmentId).execute();
                         byte[] data = Base64.getUrlDecoder().decode(attachment.getData());
 
                         if (part.getFilename().toLowerCase().endsWith(".pdf")) {
@@ -265,8 +314,6 @@ public class GmailService {
                 }
             }
         }
-
-        // Tentar corpo do e-mail
         return extractBodyText(message.getPayload());
     }
 
@@ -292,20 +339,5 @@ public class GmailService {
             log.error("Erro ao extrair PDF: {}", e.getMessage());
             return null;
         }
-    }
-
-    /** Encontra o usuário dono da batida pela matrícula ou nome do colaborador. */
-    private Optional<Usuario> resolveOwner(PunchTextParser.ParsedPunch punch) {
-        if (punch.matricula() != null && !punch.matricula().isBlank()) {
-            Optional<Usuario> byMatricula = usuarioRepository.findByMatricula(punch.matricula().trim());
-            if (byMatricula.isPresent()) {
-                return byMatricula;
-            }
-        }
-        // Fallback para o nome
-        if (punch.employeeName() != null && !punch.employeeName().isBlank()) {
-            return usuarioRepository.findByEmployeeNameIgnoreCase(punch.employeeName().trim());
-        }
-        return Optional.empty();
     }
 }

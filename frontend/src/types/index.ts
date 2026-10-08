@@ -81,5 +81,8 @@ export interface Dashboard {
 
 export interface GmailStatus {
   hasCredentials: boolean;
-  isAuthenticated: boolean;
+  status: string;
+  email: string;
+  syncFrom: string;
+  lastSync: string;
 }

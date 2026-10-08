@@ -81,9 +81,14 @@ export const whatsAppApi = {
 
 export const gmailApi = {
   getStatus: () => api.get<GmailStatus>('/gmail/status').then(r => r.data),
+  connect: (syncFrom?: string) => api.post<{ authUrl: string }>('/gmail/connect', { syncFrom }).then(r => r.data),
+  disconnect: () => api.post<{ success: boolean }>('/gmail/disconnect').then(r => r.data),
   sync: () => api.post<{ processed: number }>('/gmail/sync').then(r => r.data),
-  syncHistory: (afterDate?: string) => api.post<{ processed: number }>('/gmail/sync-history', { afterDate }).then(r => r.data),
-  syncAdvanced: (data: { startDate?: string, endDate?: string, userId?: number }) => api.post<{ processed: number }>('/gmail/sync-advanced', data).then(r => r.data),
-  getAuthUrl: () => api.get<{ authUrl: string }>('/gmail/auth').then(r => r.data),
-  submitCode: (code: string) => api.post<{ success: boolean }>('/gmail/code', { code }).then(r => r.data),
+  syncAdvanced: (data: { startDate: string, endDate: string, userId: number }) => api.post<{ processed: number }>('/gmail/sync-advanced', data).then(r => r.data),
+};
+
+export const profileApi = {
+  get: () => api.get<any>('/profile').then(r => r.data),
+  update: (data: any) => api.put<{ message: string }>('/profile', data).then(r => r.data),
+  updatePassword: (data: any) => api.put<{ message: string }>('/profile/password', data).then(r => r.data),
 };

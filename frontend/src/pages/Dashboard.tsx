@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Clock, Wallet, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { dashboardApi, gmailApi } from '../api/client';
-import type { Dashboard as DashboardData } from '../types';
+import type { Dashboard as DashboardData, GmailStatus } from '../types';
 import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
 import { workDayApi, timeRecordApi } from '../api/client';
 import type { WorkDay } from '../types';
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [history, setHistory] = useState<WorkDay[]>([]);
@@ -24,8 +25,12 @@ export default function Dashboard() {
   const load = async () => {
     try {
       setLoading(true);
-      const d = await dashboardApi.get(currentMonth.year, currentMonth.month);
+      const [d, g] = await Promise.all([
+        dashboardApi.get(currentMonth.year, currentMonth.month),
+        gmailApi.getStatus().catch(() => null)
+      ]);
       setData(d);
+      setGmailStatus(g);
       
       const year = d.monthSummary?.year ?? currentMonth.year;
       const month = d.monthSummary?.month ?? currentMonth.month;
@@ -73,11 +78,16 @@ export default function Dashboard() {
   useEffect(() => { load(); }, [currentMonth]);
 
   const handleSync = async () => {
+    if (gmailStatus?.status !== 'CONECTADO') {
+      return alert('Conecte o Gmail no seu Perfil antes de sincronizar.');
+    }
     setSyncing(true);
     try {
       const r = await gmailApi.sync();
       if (r.processed > 0) await load();
       alert(`Sincronizados ${r.processed} e-mail(s).`);
+    } catch (e: any) {
+      alert(`Erro: ${e.response?.data?.message || e.message}`);
     } finally {
       setSyncing(false);
     }
@@ -145,6 +155,19 @@ export default function Dashboard() {
           {syncing ? 'Sincronizando...' : 'Sincronizar Gmail'}
         </button>
       </div>
+
+      {/* Gmail Banner */}
+      {gmailStatus && (gmailStatus.status === 'DESCONECTADO' || gmailStatus.status === 'EXPIRADO') && (
+        <a href="/perfil" style={{ textDecoration: 'none' }}>
+          <div style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <AlertCircle size={20} />
+              <strong>{gmailStatus.status === 'EXPIRADO' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</strong>
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: 600, textDecoration: 'underline' }}>Reconectar agora</span>
+          </div>
+        </a>
+      )}
 
       {/* Carry Over Banner */}
       {s?.carriedOver > 0 && (

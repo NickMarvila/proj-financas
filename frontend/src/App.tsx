@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut
+  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut, User
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
@@ -9,6 +9,7 @@ import Financas from './pages/Financas';
 import Configuracoes from './pages/Configuracoes';
 import Historico from './pages/Historico';
 import Login from './pages/Login';
+import Perfil from './pages/Perfil';
 import { authApi } from './api/client';
 
 const navItems = [
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/ponto', icon: Clock, label: 'Ponto' },
   { to: '/financas', icon: Wallet, label: 'Finanças' },
   { to: '/historico', icon: History, label: 'Histórico' },
+  { to: '/perfil', icon: User, label: 'Perfil' },
   { to: '/configuracoes', icon: Settings, label: 'Config' },
 ];
 
@@ -112,6 +114,7 @@ function MainLayout() {
           <Route path="/ponto" element={<Ponto />} />
           <Route path="/financas" element={<Financas />} />
           <Route path="/historico" element={<Historico />} />
+          <Route path="/perfil" element={<Perfil />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
         </Routes>
       </main>
