@@ -233,6 +233,7 @@ public class GmailService {
         String pageToken = null;
 
         do {
+            log.info("Executando query no Gmail: {}", query);
             ListMessagesResponse response = service.users().messages()
                     .list("me")
                     .setQ(query)
@@ -240,6 +241,8 @@ public class GmailService {
                     .execute();
 
             List<Message> messages = response.getMessages();
+            log.info("O Gmail retornou {} mensagens", messages == null ? 0 : messages.size());
+
             if (messages == null || messages.isEmpty()) {
                 break;
             }
