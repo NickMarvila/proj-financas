@@ -1,14 +1,14 @@
-# === Ambiente e Configurações de Máquina ===
+﻿# === Ambiente e ConfiguraÃ§Ãµes de MÃ¡quina ===
 .env
 *.env
 client_secret*.json
 
-# === Credenciais e Autenticações (MUITO SENSÍVEL) ===
+# === Credenciais e AutenticaÃ§Ãµes (MUITO SENSÃVEL) ===
 /gmail-credentials/credentials.json
 /gmail-tokens/
 gmail-tokens/StoredCredential
 
-# === Arquivos Temporários e de Pedidos ===
+# === Arquivos TemporÃ¡rios e de Pedidos ===
 pedido.txt
 scratch_create.json
 
@@ -37,3 +37,14 @@ frontend/npm-debug.log*
 # === Sistema Operacional ===
 Thumbs.db
 .DS_Store
+dump.sql
+
+gmail-tokens/
+
+gmail-credentials/
+
+
+
+dump.sql
+gmail-tokens/
+gmail-credentials/

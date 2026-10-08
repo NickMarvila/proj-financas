@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut
@@ -9,6 +9,7 @@ import Financas from './pages/Financas';
 import Configuracoes from './pages/Configuracoes';
 import Historico from './pages/Historico';
 import Login from './pages/Login';
+import { authApi } from './api/client';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -54,6 +55,13 @@ function MobileBottomNav() {
 
 function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    authApi.me().then(u => {
+      setUserName(u.employeeName || u.username);
+    }).catch(() => {});
+  }, []);
 
   return (
     <div className="app-layout">
@@ -68,7 +76,7 @@ function MainLayout() {
           <div className="logo-icon">💰</div>
           <div>
             <div className="logo-text">FinançasPonto</div>
-            <div className="logo-sub">Nicolas Marvila</div>
+            <div className="logo-sub">{userName || 'Carregando...'}</div>
           </div>
         </div>
         <nav className="sidebar-nav">
