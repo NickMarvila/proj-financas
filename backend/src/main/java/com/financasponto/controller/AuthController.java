@@ -18,7 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -97,5 +99,22 @@ public class AuthController {
         body.put("employeeName", u.getEmployeeName());
         body.put("role", u.getRole() != null ? u.getRole().name() : Usuario.Role.USER.name());
         return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/users")
+    public ResponseEntity<List<Map<String, Object>>> listUsers() {
+        Usuario currentUserEntity = currentUser.get();
+        if (currentUserEntity.getRole() != Usuario.Role.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        List<Map<String, Object>> users = usuarioRepository.findAll().stream().map(u -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", u.getId());
+            map.put("username", u.getUsername());
+            map.put("employeeName", u.getEmployeeName());
+            map.put("matricula", u.getMatricula());
+            return map;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(users);
     }
 }

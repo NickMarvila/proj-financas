@@ -1,5 +1,6 @@
 package com.financasponto.controller;
 
+import com.financasponto.dto.SyncAdvancedDTO;
 import com.financasponto.service.GmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +57,16 @@ public class GmailController {
         try {
             String afterDate = body != null ? body.get("afterDate") : null;
             int count = gmailService.pollAndProcess(true, afterDate);
+            return ResponseEntity.ok(Map.of("processed", count));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sync-advanced")
+    public ResponseEntity<Map<String, Object>> syncAdvanced(@RequestBody SyncAdvancedDTO dto) {
+        try {
+            int count = gmailService.pollAdvanced(dto.getStartDate(), dto.getEndDate(), dto.getUserId());
             return ResponseEntity.ok(Map.of("processed", count));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

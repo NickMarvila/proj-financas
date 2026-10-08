@@ -29,6 +29,7 @@ api.interceptors.response.use(
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data).then(r => r.data),
   register: (data: any) => api.post('/auth/register', data).then(r => r.data),
+  getUsers: () => api.get<any[]>('/auth/users').then(r => r.data),
 };
 export const dashboardApi = {
   get: (year?: number, month?: number) => {
@@ -81,6 +82,7 @@ export const gmailApi = {
   getStatus: () => api.get<GmailStatus>('/gmail/status').then(r => r.data),
   sync: () => api.post<{ processed: number }>('/gmail/sync').then(r => r.data),
   syncHistory: (afterDate?: string) => api.post<{ processed: number }>('/gmail/sync-history', { afterDate }).then(r => r.data),
+  syncAdvanced: (data: { startDate?: string, endDate?: string, userId?: number }) => api.post<{ processed: number }>('/gmail/sync-advanced', data).then(r => r.data),
   getAuthUrl: () => api.get<{ authUrl: string }>('/gmail/auth').then(r => r.data),
   submitCode: (code: string) => api.post<{ success: boolean }>('/gmail/code', { code }).then(r => r.data),
 };

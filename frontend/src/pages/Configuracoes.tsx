@@ -17,6 +17,13 @@ export default function Configuracoes() {
   const [authSuccess, setAuthSuccess] = useState<boolean | null>(null);
   const [generatingQr, setGeneratingQr] = useState(false);
 
+  const [users, setUsers] = useState<any[]>([]);
+  const [advStartDate, setAdvStartDate] = useState('');
+  const [advEndDate, setAdvEndDate] = useState('');
+  const [advUserId, setAdvUserId] = useState<string>('');
+  const [advLogs, setAdvLogs] = useState<{date: string, msg: string, status: string}[]>([]);
+  const [advSyncing, setAdvSyncing] = useState(false);
+
   const loadStatus = async () => {
     const [g, w] = await Promise.all([
       gmailApi.getStatus().catch(() => null),
@@ -26,7 +33,15 @@ export default function Configuracoes() {
     setWaStatus(w);
   };
 
-  useEffect(() => { loadStatus(); }, []);
+  const loadUsers = async () => {
+    try {
+      const { authApi } = await import('../api/client');
+      const u = await authApi.getUsers();
+      setUsers(u);
+    } catch(e) {}
+  };
+
+  useEffect(() => { loadStatus(); loadUsers(); }, []);
 
   const getGmailAuthUrl = async () => {
     setAuthLoading(true);
@@ -99,6 +114,34 @@ export default function Configuracoes() {
     await whatsAppApi.sendTest(testMsg || undefined).catch(() => {});
     setSending(false);
     alert('Mensagem enviada!');
+  };
+
+  const runAdvancedSync = async () => {
+    if (!advStartDate || !advEndDate) return alert("Selecione data inicial e final");
+    setAdvSyncing(true);
+    setAdvLogs([]);
+    
+    // Assegura que o timezone não mude a data selecionada
+    const current = new Date(advStartDate + 'T12:00:00');
+    const end = new Date(advEndDate + 'T12:00:00');
+    const userId = advUserId ? parseInt(advUserId) : undefined;
+
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      const nextDay = new Date(current);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDateStr = nextDay.toISOString().split('T')[0];
+
+      setAdvLogs(prev => [...prev, { date: dateStr, msg: 'Buscando...', status: 'pending' }]);
+      try {
+        const r = await gmailApi.syncAdvanced({ startDate: dateStr, endDate: nextDateStr, userId });
+        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: `${r.processed} batidas`, status: 'success' } : l));
+      } catch (e: any) {
+        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: `Erro`, status: 'error' } : l));
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    setAdvSyncing(false);
   };
 
   return (
@@ -278,6 +321,56 @@ export default function Configuracoes() {
               Criar Usuário
             </button>
           </form>
+        </div>
+      </div>
+
+      {/* Busca Avançada de Histórico (Range e Usuário) */}
+      <div className="grid-2" style={{ marginTop: 24 }}>
+        <div className="card">
+          <div className="section-title"><span className="dot" />Sincronização Avançada (Lote)</div>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+            Busca comprovantes em lote, dia por dia, para evitar os limites do Gmail.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Usuário Específico (Opcional)</label>
+              <select className="form-input" value={advUserId} onChange={e => setAdvUserId(e.target.value)}>
+                <option value="">-- Todos os Usuários --</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.employeeName || u.username}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <label className="form-label">Data Inicial</label>
+                <input type="date" className="form-input" value={advStartDate} onChange={e => setAdvStartDate(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                <label className="form-label">Data Final</label>
+                <input type="date" className="form-input" value={advEndDate} onChange={e => setAdvEndDate(e.target.value)} />
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={runAdvancedSync} disabled={advSyncing}>
+              {advSyncing ? 'Sincronizando lote...' : 'Iniciar Sincronização'}
+            </button>
+            
+            {advLogs.length > 0 && (
+              <div style={{ marginTop: 12, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)', maxHeight: 200, overflowY: 'auto' }}>
+                {advLogs.map(l => (
+                  <div key={l.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{l.date}</span>
+                    <span style={{ 
+                      color: l.status === 'success' ? 'var(--accent-green)' : 
+                             l.status === 'error' ? 'var(--accent-red)' : 'var(--text-primary)' 
+                    }}>
+                      {l.msg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

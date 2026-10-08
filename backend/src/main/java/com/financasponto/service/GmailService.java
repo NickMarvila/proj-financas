@@ -131,7 +131,6 @@ public class GmailService {
             log.warn("credentials.json não encontrado, pulando polling Gmail");
             return 0;
         }
-        int processed = 0;
         Gmail service = getGmailService();
         String query = "from:" + pollSender + (syncHistory ? "" : " is:unread");
         if (syncHistory && afterDate != null && !afterDate.isBlank()) {
@@ -143,7 +142,42 @@ public class GmailService {
                 .setQ(query)
                 .execute();
 
-        List<Message> messages = response.getMessages();
+        return processMessages(service, response.getMessages(), syncHistory);
+    }
+
+    public int pollAdvanced(String startDate, String endDate, Long userId) throws Exception {
+        if (!hasCredentials()) return 0;
+        Gmail service = getGmailService();
+        String query = "from:" + pollSender;
+        if (startDate != null && !startDate.isBlank()) {
+            query += " after:" + startDate.replace("-", "/");
+        }
+        if (endDate != null && !endDate.isBlank()) {
+            query += " before:" + endDate.replace("-", "/");
+        }
+        if (userId != null) {
+            Optional<Usuario> userOpt = usuarioRepository.findById(userId);
+            if (userOpt.isPresent()) {
+                Usuario user = userOpt.get();
+                if (user.getMatricula() != null && !user.getMatricula().isBlank()) {
+                    query += " \"" + user.getMatricula() + "\"";
+                } else if (user.getEmployeeName() != null && !user.getEmployeeName().isBlank()) {
+                    query += " \"" + user.getEmployeeName() + "\"";
+                }
+            }
+        }
+        
+        log.info("Advanced Poll Query: {}", query);
+        ListMessagesResponse response = service.users().messages()
+                .list(gmailUser)
+                .setQ(query)
+                .execute();
+
+        return processMessages(service, response.getMessages(), true);
+    }
+
+    private int processMessages(Gmail service, List<Message> messages, boolean syncHistory) throws Exception {
+        int processed = 0;
         if (messages == null || messages.isEmpty()) {
             log.debug("Nenhum e-mail novo de {}", pollSender);
             return 0;
