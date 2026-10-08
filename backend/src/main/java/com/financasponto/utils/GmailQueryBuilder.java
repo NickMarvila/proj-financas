@@ -6,7 +6,7 @@ import java.time.ZoneId;
 
 public final class GmailQueryBuilder {
 
-    private static final String BASE_QUERY = "from:eventos@pmovel.com.br subject:\"Comprovante de Marcação\" has:attachment";
+    private static final String BASE_QUERY = "from:eventos@pmovel.com.br subject:\"Comprovante\" has:attachment";
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
     private GmailQueryBuilder() {}
