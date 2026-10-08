@@ -296,7 +296,7 @@ body::before {
   background: rgba(16,185,129,0.06);
   box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
 }
-.form-select option { background: #1a1f35; }
+.form-select option, .form-input option { background: #1a1f35; color: var(--text-primary); }
 
 /* ===== Buttons ===== */
 .btn {
