@@ -49,7 +49,7 @@ public class DashboardController {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("today", targetDate.toString());
         response.put("monthSummary", summary);
-        response.put("todayRecords", timeRecordService.getMonthRecords(user.getId(), y, m)
+        response.put("todayRecords", timeRecordService.getMonthRecords(user, y, m)
                 .stream().filter(r -> r.getTimestamp().toLocalDate().equals(targetDate)).toList());
         response.put("todayWorkDay", targetWorkDay.orElse(null));
         response.put("currentMonth", Map.of("month", m, "year", y));
