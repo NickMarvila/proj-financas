@@ -49,6 +49,36 @@ public class Usuario {
     @Column(name = "gmail_last_sync")
     private java.time.LocalDateTime gmailLastSync;
 
+    @Column(name = "work_monday")
+    private String workMonday;
+
+    @Column(name = "work_tuesday")
+    private String workTuesday;
+
+    @Column(name = "work_wednesday")
+    private String workWednesday;
+
+    @Column(name = "work_thursday")
+    private String workThursday;
+
+    @Column(name = "work_friday")
+    private String workFriday;
+
+    @Column(name = "work_saturday")
+    private String workSaturday;
+
+    @Column(name = "work_sunday")
+    private String workSunday;
+
+    @Column(name = "monthly_hours_goal")
+    private Integer monthlyHoursGoal;
+
+    @Column(name = "first_day_of_week")
+    private String firstDayOfWeek;
+
+    @Column(name = "first_day_of_month")
+    private Integer firstDayOfMonth;
+
     public boolean isAdmin() {
         return role == Role.ADMIN;
     }

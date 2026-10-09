@@ -1,0 +1,1 @@
+\d salary_config

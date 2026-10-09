@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mail, CheckCircle, AlertTriangle, XCircle, LogOut, Calendar, User, Key } from 'lucide-react';
+import { Mail, CheckCircle, AlertTriangle, XCircle, LogOut, Calendar, User, Key, Clock } from 'lucide-react';
 import { gmailApi, profileApi } from '../api/client';
 import { GmailStatus } from '../types';
 
@@ -16,7 +16,12 @@ export default function Perfil() {
 
   const [profile, setProfile] = useState<any>(null);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ employeeName: '', cpf: '', whatsappPhone: '' });
+  const [profileForm, setProfileForm] = useState({ 
+    employeeName: '', cpf: '', whatsappPhone: '',
+    workMonday: '', workTuesday: '', workWednesday: '', workThursday: '', 
+    workFriday: '', workSaturday: '', workSunday: '',
+    monthlyHoursGoal: 220, firstDayOfWeek: 'MONDAY', firstDayOfMonth: 21
+  });
   
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '' });
@@ -28,7 +33,21 @@ export default function Perfil() {
     try {
       const p = await profileApi.get();
       setProfile(p);
-      setProfileForm({ employeeName: p.employeeName || '', cpf: p.cpf || '', whatsappPhone: p.whatsappPhone || '' });
+      setProfileForm({ 
+        employeeName: p.employeeName || '', 
+        cpf: p.cpf || '', 
+        whatsappPhone: p.whatsappPhone || '',
+        workMonday: p.workMonday || '',
+        workTuesday: p.workTuesday || '',
+        workWednesday: p.workWednesday || '',
+        workThursday: p.workThursday || '',
+        workFriday: p.workFriday || '',
+        workSaturday: p.workSaturday || '',
+        workSunday: p.workSunday || '',
+        monthlyHoursGoal: p.monthlyHoursGoal || 220,
+        firstDayOfWeek: p.firstDayOfWeek || 'MONDAY',
+        firstDayOfMonth: p.firstDayOfMonth || 21
+      });
     } catch(e) {}
     gmailApi.getStatus().then(setStatus).finally(() => setLoading(false));
   };
@@ -153,6 +172,73 @@ export default function Perfil() {
             </div>
             <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
               {savingProfile ? 'Salvando...' : 'Salvar Dados Pessoais'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="card glass-card" style={{ marginBottom: 24 }}>
+        {profile && (
+          <div style={{ padding: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
+              <div style={{ background: 'var(--accent-green-dim)', padding: 12, borderRadius: '50%', color: 'var(--accent-green)' }}>
+                <Clock size={24} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Jornada de Trabalho</h2>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  Configure seu expediente e metas para cálculo de horas.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Segunda-feira</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00 - 13:30 as 18:00" value={profileForm.workMonday} onChange={e => setProfileForm({ ...profileForm, workMonday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Terça-feira</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00 - 13:30 as 18:00" value={profileForm.workTuesday} onChange={e => setProfileForm({ ...profileForm, workTuesday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Quarta-feira</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00 - 13:30 as 18:00" value={profileForm.workWednesday} onChange={e => setProfileForm({ ...profileForm, workWednesday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Quinta-feira</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00 - 13:30 as 18:00" value={profileForm.workThursday} onChange={e => setProfileForm({ ...profileForm, workThursday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sexta-feira</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00 - 13:30 as 17:30" value={profileForm.workFriday} onChange={e => setProfileForm({ ...profileForm, workFriday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sábado</label>
+                <input className="form-input" placeholder="ex: 08:00 as 12:00" value={profileForm.workSaturday} onChange={e => setProfileForm({ ...profileForm, workSaturday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Domingo</label>
+                <input className="form-input" placeholder="ex: não trabalha" value={profileForm.workSunday} onChange={e => setProfileForm({ ...profileForm, workSunday: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Meta Mensal (horas)</label>
+                <input type="number" className="form-input" value={profileForm.monthlyHoursGoal} onChange={e => setProfileForm({ ...profileForm, monthlyHoursGoal: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Primeiro dia da Semana</label>
+                <select className="form-input" value={profileForm.firstDayOfWeek} onChange={e => setProfileForm({ ...profileForm, firstDayOfWeek: e.target.value })}>
+                  <option value="MONDAY">Segunda-feira</option>
+                  <option value="SUNDAY">Domingo</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Primeiro dia do Mês (Corte)</label>
+                <input type="number" className="form-input" min={1} max={31} value={profileForm.firstDayOfMonth} onChange={e => setProfileForm({ ...profileForm, firstDayOfMonth: parseInt(e.target.value) || 1 })} />
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
+              {savingProfile ? 'Salvando...' : 'Salvar Jornada'}
             </button>
           </div>
         )}

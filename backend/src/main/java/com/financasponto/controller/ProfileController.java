@@ -31,6 +31,16 @@ public class ProfileController {
         body.put("cpf", u.getCpf());
         body.put("whatsappPhone", u.getWhatsappPhone());
         body.put("role", u.getRole() != null ? u.getRole().name() : Usuario.Role.USER.name());
+        body.put("workMonday", u.getWorkMonday());
+        body.put("workTuesday", u.getWorkTuesday());
+        body.put("workWednesday", u.getWorkWednesday());
+        body.put("workThursday", u.getWorkThursday());
+        body.put("workFriday", u.getWorkFriday());
+        body.put("workSaturday", u.getWorkSaturday());
+        body.put("workSunday", u.getWorkSunday());
+        body.put("monthlyHoursGoal", u.getMonthlyHoursGoal());
+        body.put("firstDayOfWeek", u.getFirstDayOfWeek());
+        body.put("firstDayOfMonth", u.getFirstDayOfMonth());
         return ResponseEntity.ok(body);
     }
 
@@ -39,6 +49,16 @@ public class ProfileController {
         private String employeeName;
         private String cpf;
         private String whatsappPhone;
+        private String workMonday;
+        private String workTuesday;
+        private String workWednesday;
+        private String workThursday;
+        private String workFriday;
+        private String workSaturday;
+        private String workSunday;
+        private Integer monthlyHoursGoal;
+        private String firstDayOfWeek;
+        private Integer firstDayOfMonth;
     }
 
     @PutMapping
@@ -64,6 +84,17 @@ public class ProfileController {
         user.setEmployeeName(employeeName == null || employeeName.isEmpty() ? null : employeeName);
         user.setCpf(cpf == null || cpf.isEmpty() ? null : cpf);
         user.setWhatsappPhone(dto.getWhatsappPhone() != null && !dto.getWhatsappPhone().trim().isEmpty() ? dto.getWhatsappPhone().trim() : null);
+
+        user.setWorkMonday(dto.getWorkMonday());
+        user.setWorkTuesday(dto.getWorkTuesday());
+        user.setWorkWednesday(dto.getWorkWednesday());
+        user.setWorkThursday(dto.getWorkThursday());
+        user.setWorkFriday(dto.getWorkFriday());
+        user.setWorkSaturday(dto.getWorkSaturday());
+        user.setWorkSunday(dto.getWorkSunday());
+        user.setMonthlyHoursGoal(dto.getMonthlyHoursGoal());
+        user.setFirstDayOfWeek(dto.getFirstDayOfWeek());
+        user.setFirstDayOfMonth(dto.getFirstDayOfMonth());
 
         usuarioRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "Perfil atualizado com sucesso"));
