@@ -81,8 +81,9 @@ public class FinanceService {
     @Transactional
     public MonthlySummary recalculateMonthlySummary(Usuario user, int month, int year) {
         Long userId = user.getId();
-        LocalDate start = CycleUtils.getCycleStart(year, month);
-        LocalDate end = CycleUtils.getCycleEnd(year, month);
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        LocalDate start = CycleUtils.getCycleStart(year, month, cutDay);
+        LocalDate end = CycleUtils.getCycleEnd(year, month, cutDay);
 
         Integer overtimeMinutes = workDayRepository.sumOvertimeMinutesByUserIdAndDateBetween(userId, start, end);
         if (overtimeMinutes == null) overtimeMinutes = 0;
@@ -98,7 +99,7 @@ public class FinanceService {
         
         overtimeMinutes -= (missingSaturdays * 240); // 4 horas por sábado não trabalhado
 
-        Cycle currentCycle = CycleUtils.getCurrentCycle(LocalDate.now());
+        Cycle currentCycle = CycleUtils.getCurrentCycle(LocalDate.now(), cutDay);
         boolean isFuture = year > currentCycle.year || (year == currentCycle.year && month > currentCycle.month);
         boolean isPastBeforeStart = year < 2026 || (year == 2026 && month < 4); // Sistema iniciou em Abril/2026
 
@@ -122,8 +123,11 @@ public class FinanceService {
 
         BigDecimal overtimePay = BigDecimal.ZERO;
         if (config != null && overtimeMinutes != 0) {
+            int divisor = user.getMonthlyHoursGoal() != null && user.getMonthlyHoursGoal() > 0 
+                    ? user.getMonthlyHoursGoal() 
+                    : (config.getMonthlyHoursDivisor() != null ? config.getMonthlyHoursDivisor() : 220);
             BigDecimal hourlyRate = config.getBaseSalary()
-                    .divide(BigDecimal.valueOf(config.getMonthlyHoursDivisor()), 4, RoundingMode.HALF_UP);
+                    .divide(BigDecimal.valueOf(divisor), 4, RoundingMode.HALF_UP);
             
             if (overtimeMinutes > 0) {
                 BigDecimal rate = BigDecimal.ONE.add(config.getOvertimeRate());
@@ -172,7 +176,8 @@ public class FinanceService {
     }
 
     public MonthlySummary getCurrentMonthSummary(Usuario user) {
-        Cycle cycle = CycleUtils.getCurrentCycle(LocalDate.now());
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        Cycle cycle = CycleUtils.getCurrentCycle(LocalDate.now(), cutDay);
         return getSummary(user, cycle.year, cycle.month);
     }
 

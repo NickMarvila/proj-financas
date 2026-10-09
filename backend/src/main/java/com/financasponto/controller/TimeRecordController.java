@@ -30,14 +30,16 @@ public class TimeRecordController {
 
     @GetMapping("/time-records/{year}/{month}")
     public ResponseEntity<List<TimeRecord>> getByMonth(@PathVariable int year, @PathVariable int month) {
-        return ResponseEntity.ok(timeRecordService.getMonthRecords(currentUser.id(), year, month));
+        return ResponseEntity.ok(timeRecordService.getMonthRecords(currentUser.get(), year, month));
     }
 
     @GetMapping("/work-days/{year}/{month}")
     public ResponseEntity<List<WorkDay>> getWorkDays(@PathVariable int year, @PathVariable int month) {
-        LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month);
-        LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month);
-        return ResponseEntity.ok(workDayRepository.findByUserIdAndDateBetweenOrderByDateDesc(currentUser.id(), start, end));
+        Usuario user = currentUser.get();
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month, cutDay);
+        LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month, cutDay);
+        return ResponseEntity.ok(workDayRepository.findByUserIdAndDateBetweenOrderByDateDesc(user.getId(), start, end));
     }
 
     @GetMapping("/work-days/today")

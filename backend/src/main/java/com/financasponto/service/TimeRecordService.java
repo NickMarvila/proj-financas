@@ -168,10 +168,11 @@ public class TimeRecordService {
                 now.toLocalDate().atTime(23, 59, 59));
     }
 
-    public List<TimeRecord> getMonthRecords(Long userId, int year, int month) {
-        LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month);
-        LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month);
+    public List<TimeRecord> getMonthRecords(Usuario user, int year, int month) {
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month, cutDay);
+        LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month, cutDay);
         return timeRecordRepository.findByUserIdAndTimestampBetweenOrderByTimestampAsc(
-                userId, start.atStartOfDay(), end.atTime(23, 59, 59));
+                user.getId(), start.atStartOfDay(), end.atTime(23, 59, 59));
     }
 }

@@ -32,16 +32,17 @@ public class DashboardController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
         
+        Usuario user = currentUser.get();
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        
         LocalDate today = LocalDate.now();
-        CycleUtils.Cycle cycle = CycleUtils.getCurrentCycle(today);
+        CycleUtils.Cycle cycle = CycleUtils.getCurrentCycle(today, cutDay);
         int y = (year != null) ? year : cycle.year;
         int m = (month != null) ? month : cycle.month;
         
         LocalDate targetDate = (y == cycle.year && m == cycle.month) 
                 ? today 
-                : CycleUtils.getCycleEnd(y, m);
-        
-        Usuario user = currentUser.get();
+                : CycleUtils.getCycleEnd(y, m, cutDay);
         MonthlySummary summary = financeService.getSummary(user, y, m);
         Optional<WorkDay> targetWorkDay = workDayRepository.findByUserIdAndDate(user.getId(), targetDate);
         

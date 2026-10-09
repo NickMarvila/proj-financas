@@ -16,28 +16,36 @@ public class CycleUtils {
 
     /**
      * Retorna a data de início do ciclo para o mês de referência.
-     * O ciclo de "Maio" (mês 5) começa em "21 de Abril".
+     * Ex com cutDay=21: O ciclo de "Maio" (mês 5) começa em "21 de Abril".
+     * Ex com cutDay=1: O ciclo começa no dia 1 do próprio mês.
      */
-    public static LocalDate getCycleStart(int year, int month) {
-        LocalDate end = getCycleEnd(year, month);
-        return end.minusMonths(1).plusDays(1); // Ex: 20/05 -> 20/04 + 1 dia = 21/04
+    public static LocalDate getCycleStart(int year, int month, int cutDay) {
+        if (cutDay == 1) {
+            return LocalDate.of(year, month, 1);
+        }
+        LocalDate end = getCycleEnd(year, month, cutDay);
+        return end.minusMonths(1).plusDays(1);
     }
 
     /**
      * Retorna a data de fim do ciclo para o mês de referência.
-     * O ciclo de "Maio" (mês 5) termina em "20 de Maio".
+     * Ex com cutDay=21: O ciclo de "Maio" (mês 5) termina em "20 de Maio".
      */
-    public static LocalDate getCycleEnd(int year, int month) {
-        return LocalDate.of(year, month, 1).withDayOfMonth(20);
+    public static LocalDate getCycleEnd(int year, int month, int cutDay) {
+        if (cutDay == 1) {
+            return LocalDate.of(year, month, 1).with(java.time.temporal.TemporalAdjusters.lastDayOfMonth());
+        }
+        return LocalDate.of(year, month, 1).withDayOfMonth(cutDay - 1);
     }
 
     /**
      * Determina qual é o ciclo de referência para uma determinada data.
-     * Se dia <= 20, pertence ao mês atual.
-     * Se dia >= 21, pertence ao mês seguinte.
      */
-    public static Cycle getCurrentCycle(LocalDate date) {
-        if (date.getDayOfMonth() <= 20) {
+    public static Cycle getCurrentCycle(LocalDate date, int cutDay) {
+        if (cutDay == 1) {
+            return new Cycle(date.getYear(), date.getMonthValue());
+        }
+        if (date.getDayOfMonth() < cutDay) {
             return new Cycle(date.getYear(), date.getMonthValue());
         } else {
             LocalDate nextMonth = date.plusMonths(1);
