@@ -15,8 +15,8 @@ Na interface de usuário:
 
 **Blocked by:** 01: Regra de Sábados e Liquidação de Horas Extras Semanais no Fechamento.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Adicionar botão preset "Escala 6x1 Compensada" no `WorkScheduleEditor.tsx`.
-- [ ] Adicionar banner/dica explicativa no editor de jornada.
-- [ ] Atualizar cards de detalhamento de folha em `Financas.tsx` com a contagem transparente de sábados.
+- [x] Adicionar botão preset "Escala 6x1 Compensada" no `WorkScheduleEditor.tsx`.
+- [x] Adicionar banner/dica explicativa no editor de jornada.
+- [x] Atualizar cards de detalhamento de folha em `Financas.tsx` e `Dashboard.tsx` com a contagem transparente de sábados.

@@ -10,10 +10,10 @@ Ajustar o cálculo de fechamento mensal (`FinanceService.recalculateMonthlySumma
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Implementar cálculo de `unworkedSaturdays = Math.max(0, totalSaturdays - (int) workedSaturdays)`.
-- [ ] Implementar cálculo de `requiredSaturdays = Math.max(0, totalSaturdays - 2)`.
-- [ ] Implementar `missingSaturdays = Math.max(0, requiredSaturdays - (int) workedSaturdays)`.
-- [ ] Ajustar `overtimeMinutes` subtraindo apenas os minutos correspondentes aos sábados de folga (`unworkedSaturdays * 240`), liberando automaticamente as horas extras da semana quando o sábado é trabalhado.
-- [ ] Testar todos os 5 cenários com assertivas numéricas exatas.
+- [x] Implementar cálculo de `unworkedSaturdays = Math.max(0, totalSaturdays - (int) workedSaturdays)`.
+- [x] Implementar cálculo de `requiredSaturdays = Math.max(0, totalSaturdays - 2)`.
+- [x] Implementar `missingSaturdays = Math.max(0, requiredSaturdays - (int) workedSaturdays)`.
+- [x] Ajustar `overtimeMinutes` subtraindo apenas os minutos correspondentes aos sábados de folga (`unworkedSaturdays * 240`), liberando automaticamente as horas extras da semana quando o sábado é trabalhado.
+- [x] Testar todos os 5 cenários com assertivas numéricas exatas.

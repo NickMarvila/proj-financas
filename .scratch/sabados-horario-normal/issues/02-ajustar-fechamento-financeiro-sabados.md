@@ -8,8 +8,8 @@ Assegurar no `TimeRecordService` que:
 
 **Blocked by:** 01: Regra de Sábados e Liquidação de Horas Extras Semanais no Fechamento.
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Confirmar que sábado contabiliza 4 horas normais de contrato no `TimeRecordService`.
-- [ ] Garantir que batidas além das 12:00 no sábado computem hora extra por excesso diário.
-- [ ] Validar a gravação correta de `WorkDay` para sábados trabalhados com `isSaturday = true` e `workedMinutes = 240`.
+- [x] Confirmar que sábado contabiliza 4 horas normais de contrato no `TimeRecordService`.
+- [x] Garantir que batidas além das 12:00 no sábado computem hora extra por excesso diário.
+- [x] Validar a gravação correta de `WorkDay` para sábados trabalhados com `isSaturday = true` e `workedMinutes = 240`.
