@@ -68,6 +68,9 @@ export interface MonthlySummary {
   carriedOver: number;
   finalBalance: number;
   missingSaturdays?: number;
+  workedSaturdays?: number;
+  totalSaturdays?: number;
+  requiredSaturdays?: number;
   closed: boolean;
 }
 

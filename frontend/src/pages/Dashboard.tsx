@@ -265,9 +265,17 @@ export default function Dashboard() {
                 <span style={{ fontSize: 15, fontWeight: 700, color: row.color }}>{row.value}</span>
               </div>
             ))}
+            {s?.requiredSaturdays != null && s.requiredSaturdays > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Sábados Cumpridos</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: (s?.missingSaturdays ?? 0) === 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>
+                  {s.workedSaturdays ?? 0} de {s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no mês)
+                </span>
+              </div>
+            )}
             {(s?.missingSaturdays ?? 0) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239,68,68,0.05)' }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)', paddingLeft: '8px' }}>Faltas (Sábados)</span>
+                <span style={{ fontSize: 14, color: 'var(--text-secondary)', paddingLeft: '8px' }}>Faltas (Sábados Obrigatórios)</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-red)', paddingRight: '8px' }}>
                   −{(s?.missingSaturdays ?? 0)} sábado(s) = −{(s?.missingSaturdays ?? 0) * 4}h
                 </span>

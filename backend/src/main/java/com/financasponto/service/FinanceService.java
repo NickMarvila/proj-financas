@@ -89,15 +89,33 @@ public class FinanceService {
         if (overtimeMinutes == null) overtimeMinutes = 0;
 
         // Sábados seguem o MÊS CALENDÁRIO (dia 1 ao último dia), NÃO o ciclo 21-20
+        boolean worksSaturday = user.getWorkSaturday() == null || 
+                (!user.getWorkSaturday().toLowerCase().contains("não") && 
+                 !user.getWorkSaturday().toLowerCase().contains("nao") && 
+                 !user.getWorkSaturday().toLowerCase().contains("folga") && 
+                 !user.getWorkSaturday().trim().isEmpty());
+
         int totalSaturdays = CycleUtils.countSaturdaysInMonth(year, month);
         LocalDate startOfMonth = LocalDate.of(year, month, 1);
         LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
         long workedSaturdays = workDayRepository.countWorkedSaturdaysInCycle(userId, startOfMonth, endOfMonth);
-        
-        int missingSaturdays = totalSaturdays - (int) workedSaturdays;
-        if (missingSaturdays < 0) missingSaturdays = 0;
-        
-        overtimeMinutes -= (missingSaturdays * 240); // 4 horas por sábado não trabalhado
+
+        int requiredSaturdays = 0;
+        int missingSaturdays = 0;
+        int unworkedSaturdays = 0;
+
+        if (worksSaturday) {
+            // Escala 6x1 com compensação: 2 sábados são compensados pelas 8h de seg-qui (+30min/dia)
+            // Mês de 4 sábados -> 2 obrigatórios. Mês de 5 sábados -> 3 obrigatórios.
+            requiredSaturdays = Math.max(0, totalSaturdays - 2);
+            unworkedSaturdays = Math.max(0, totalSaturdays - (int) workedSaturdays);
+            missingSaturdays = Math.max(0, requiredSaturdays - (int) workedSaturdays);
+
+            // Cada sábado que o colaborador NÃO trabalhou (folga) consome 240 minutos (4h) da compensação semanal.
+            // Quando ele trabalha mais sábados que a meta (ex: 3 ou 4), o sábado é hora normal e menos folgas consomem compensação,
+            // liberando automaticamente as horas extras da semana (+4h ou +8h) para pagamento!
+            overtimeMinutes -= (unworkedSaturdays * 240);
+        }
 
         Cycle currentCycle = CycleUtils.getCurrentCycle(LocalDate.now(), cutDay);
         boolean isFuture = year > currentCycle.year || (year == currentCycle.year && month > currentCycle.month);
@@ -113,6 +131,9 @@ public class FinanceService {
                     .carriedOver(BigDecimal.ZERO)
                     .finalBalance(BigDecimal.ZERO)
                     .missingSaturdays(missingSaturdays)
+                    .workedSaturdays((int) workedSaturdays)
+                    .totalSaturdays(totalSaturdays)
+                    .requiredSaturdays(requiredSaturdays)
                     .build();
         }
 
@@ -159,6 +180,9 @@ public class FinanceService {
         summary.setCarriedOver(carriedOver);
         summary.setFinalBalance(finalBalance);
         summary.setMissingSaturdays(missingSaturdays);
+        summary.setWorkedSaturdays((int) workedSaturdays);
+        summary.setTotalSaturdays(totalSaturdays);
+        summary.setRequiredSaturdays(requiredSaturdays);
 
         return monthlySummaryRepository.save(summary);
     }

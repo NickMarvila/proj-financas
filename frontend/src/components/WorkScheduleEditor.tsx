@@ -320,7 +320,7 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
             }}
           >
             <Sparkles size={14} style={{ color: 'var(--accent-amber)' }} />
-            Predefinir Comercial + Sáb
+            Escala 6x1 Compensada
           </button>
 
           <button
@@ -338,6 +338,26 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
             <Sparkles size={14} style={{ color: 'var(--accent-purple)' }} />
             Predefinir 40h (Seg-Sex)
           </button>
+        </div>
+
+        {/* 6x1 Compensation Explanation Callout */}
+        <div
+          style={{
+            width: '100%',
+            marginTop: 8,
+            padding: '10px 14px',
+            background: 'rgba(16, 185, 129, 0.08)',
+            borderRadius: '10px',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <Sparkles size={16} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            <strong>Acordo de Compensação 6x1:</strong> Os +30 min diários de Seg-Qui (8h/mês) compensam 2 sábados de folga. Você precisa cumprir 2 sábados no mês (ou 3 em meses com 5 sábados). Se trabalhar sábados adicionais, as horas extras da semana vêm diretamente no pagamento.
+          </span>
         </div>
       </div>
 

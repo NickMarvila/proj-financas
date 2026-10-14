@@ -56,6 +56,15 @@ public class MonthlySummary {
     @Column(name = "missing_saturdays")
     private Integer missingSaturdays;
 
+    @Transient
+    private Integer workedSaturdays;
+
+    @Transient
+    private Integer totalSaturdays;
+
+    @Transient
+    private Integer requiredSaturdays;
+
     @Column(name = "closed")
     private Boolean closed;
 
