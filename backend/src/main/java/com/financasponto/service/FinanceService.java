@@ -206,13 +206,14 @@ public class FinanceService {
         summary.setCarriedOver(carriedOver);
         summary.setFinalBalance(finalBalance);
         summary.setMissingSaturdays(missingSaturdays);
-        summary.setWorkedSaturdays((int) workedSaturdays);
-        summary.setTotalSaturdays(totalSaturdays);
-        summary.setRequiredSaturdays(requiredSaturdays);
-        summary.setGrossOvertimeMinutes(grossOvertimeMinutes);
-        summary.setCompensatedMinutes(compensatedMinutes);
+        MonthlySummary saved = monthlySummaryRepository.save(summary);
+        saved.setWorkedSaturdays((int) workedSaturdays);
+        saved.setTotalSaturdays(totalSaturdays);
+        saved.setRequiredSaturdays(requiredSaturdays);
+        saved.setGrossOvertimeMinutes(grossOvertimeMinutes);
+        saved.setCompensatedMinutes(compensatedMinutes);
 
-        return monthlySummaryRepository.save(summary);
+        return saved;
     }
 
     private BigDecimal getCarriedOverFromPreviousMonth(Long userId, int month, int year) {
