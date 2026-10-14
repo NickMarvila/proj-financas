@@ -65,6 +65,12 @@ public class MonthlySummary {
     @Transient
     private Integer requiredSaturdays;
 
+    @Transient
+    private Integer grossOvertimeMinutes;
+
+    @Transient
+    private Integer compensatedMinutes;
+
     @Column(name = "closed")
     private Boolean closed;
 

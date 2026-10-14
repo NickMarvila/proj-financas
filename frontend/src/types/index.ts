@@ -17,7 +17,7 @@ export interface WorkDay {
   overtimeValue: number;
   isSaturday: boolean;
   overtimeNotified: boolean;
-  status: 'NORMAL' | 'OVERTIME' | 'INCOMPLETE' | 'DAY_OFF' | 'ABSENT';
+  status: 'NORMAL' | 'OVERTIME' | 'INCOMPLETE' | 'DAY_OFF' | 'ABSENT' | 'COMPENSATED';
 }
 
 export interface SalaryConfig {
@@ -63,6 +63,8 @@ export interface MonthlySummary {
   year: number;
   baseSalary: number;
   totalOvertimeMinutes: number;
+  grossOvertimeMinutes?: number;
+  compensatedMinutes?: number;
   overtimePay: number;
   totalExpenses: number;
   carriedOver: number;
@@ -80,6 +82,7 @@ export interface Dashboard {
   todayRecords: TimeRecord[];
   todayWorkDay: WorkDay | null;
   currentMonth: { month: number; year: number };
+  userSchedule?: Record<string, string>;
 }
 
 export interface GmailStatus {

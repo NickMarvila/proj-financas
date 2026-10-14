@@ -54,6 +54,16 @@ public class DashboardController {
         response.put("todayWorkDay", targetWorkDay.orElse(null));
         response.put("currentMonth", Map.of("month", m, "year", y));
 
+        Map<String, String> schedule = new LinkedHashMap<>();
+        schedule.put("workMonday", user.getWorkMonday());
+        schedule.put("workTuesday", user.getWorkTuesday());
+        schedule.put("workWednesday", user.getWorkWednesday());
+        schedule.put("workThursday", user.getWorkThursday());
+        schedule.put("workFriday", user.getWorkFriday());
+        schedule.put("workSaturday", user.getWorkSaturday());
+        schedule.put("workSunday", user.getWorkSunday());
+        response.put("userSchedule", schedule);
+
         return ResponseEntity.ok(response);
     }
 }

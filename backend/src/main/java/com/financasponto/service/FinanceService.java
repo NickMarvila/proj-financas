@@ -95,6 +95,7 @@ public class FinanceService {
                  !user.getWorkSaturday().toLowerCase().contains("folga") && 
                  !user.getWorkSaturday().trim().isEmpty());
 
+        LocalDate today = LocalDate.now();
         int totalSaturdays = CycleUtils.countSaturdaysInMonth(year, month);
         LocalDate startOfMonth = LocalDate.of(year, month, 1);
         LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
@@ -103,17 +104,40 @@ public class FinanceService {
         int requiredSaturdays = 0;
         int missingSaturdays = 0;
         int unworkedSaturdays = 0;
+        int compensatedMinutes = 0;
+        int grossOvertimeMinutes = overtimeMinutes;
 
         if (worksSaturday) {
             // Escala 6x1 com compensação: 2 sábados são compensados pelas 8h de seg-qui (+30min/dia)
             // Mês de 4 sábados -> 2 obrigatórios. Mês de 5 sábados -> 3 obrigatórios.
             requiredSaturdays = Math.max(0, totalSaturdays - 2);
-            unworkedSaturdays = Math.max(0, totalSaturdays - (int) workedSaturdays);
-            missingSaturdays = Math.max(0, requiredSaturdays - (int) workedSaturdays);
 
-            // Cada sábado que o colaborador NÃO trabalhou (folga) consome 240 minutos (4h) da compensação semanal.
-            // Quando ele trabalha mais sábados que a meta (ex: 3 ou 4), o sábado é hora normal e menos folgas consomem compensação,
-            // liberando automaticamente as horas extras da semana (+4h ou +8h) para pagamento!
+            // Sábados que já decorreram no mês até a data de hoje:
+            int elapsedSaturdays = 0;
+            if (year < today.getYear() || (year == today.getYear() && month < today.getMonthValue())) {
+                elapsedSaturdays = totalSaturdays;
+            } else if (year == today.getYear() && month == today.getMonthValue()) {
+                for (LocalDate d = startOfMonth; !d.isAfter(endOfMonth) && !d.isAfter(today); d = d.plusDays(1)) {
+                    if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
+                        elapsedSaturdays++;
+                    }
+                }
+            } else {
+                elapsedSaturdays = 0;
+            }
+
+            // Sábados decorridos que o colaborador NÃO trabalhou:
+            int elapsedUnworkedSaturdays = Math.max(0, elapsedSaturdays - (int) workedSaturdays);
+
+            // Os primeiros 2 sábados não trabalhados do mês são as folgas compensadas pela jornada de seg-qui!
+            int compensatedSaturdays = Math.min(2, elapsedUnworkedSaturdays);
+            compensatedMinutes = compensatedSaturdays * 240;
+
+            // Faltas: apenas sábados já decorridos além das 2 folgas compensadas
+            missingSaturdays = Math.max(0, elapsedUnworkedSaturdays - 2);
+
+            // Minutos deduzidos do saldo de horas extras (folgas compensadas + faltas decorridas)
+            unworkedSaturdays = elapsedUnworkedSaturdays;
             overtimeMinutes -= (unworkedSaturdays * 240);
         }
 
@@ -126,6 +150,8 @@ public class FinanceService {
                     .year(year).month(month)
                     .baseSalary(BigDecimal.ZERO)
                     .totalOvertimeMinutes(overtimeMinutes)
+                    .grossOvertimeMinutes(grossOvertimeMinutes)
+                    .compensatedMinutes(compensatedMinutes)
                     .overtimePay(BigDecimal.ZERO)
                     .totalExpenses(BigDecimal.ZERO)
                     .carriedOver(BigDecimal.ZERO)
@@ -183,6 +209,8 @@ public class FinanceService {
         summary.setWorkedSaturdays((int) workedSaturdays);
         summary.setTotalSaturdays(totalSaturdays);
         summary.setRequiredSaturdays(requiredSaturdays);
+        summary.setGrossOvertimeMinutes(grossOvertimeMinutes);
+        summary.setCompensatedMinutes(compensatedMinutes);
 
         return monthlySummaryRepository.save(summary);
     }
