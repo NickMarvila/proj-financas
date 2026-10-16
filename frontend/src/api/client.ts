@@ -47,6 +47,10 @@ export const timeRecordApi = {
     api.get<TimeRecord[]>(`/time-records/${year}/${month}`).then(r => r.data),
   addManual: (timestamp: string) =>
     api.post('/time-records/manual', { timestamp }).then(r => r.data),
+  update: (id: number, data: { timestamp: string; punchType?: 'IN' | 'OUT' }) =>
+    api.put<TimeRecord>(`/time-records/${id}`, data).then(r => r.data),
+  delete: (id: number) =>
+    api.delete(`/time-records/${id}`).then(r => r.data),
 };
 
 export const workDayApi = {

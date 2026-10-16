@@ -22,6 +22,7 @@ public class TimeRecordService {
     private final WorkDayRepository workDayRepository;
     private final SalaryConfigRepository salaryConfigRepository;
     private final WhatsAppService whatsAppService;
+    private final FinanceService financeService;
 
     @Value("${app.work.daily-contract-hours:8}")
     private int dailyContractHours;
@@ -60,8 +61,8 @@ public class TimeRecordService {
         TimeRecord saved = timeRecordRepository.save(record);
         log.info("Ponto salvo [{}]: {} {} ({})", user.getUsername(), type, timestamp, origin);
 
-        // Recalcular o dia de trabalho
-        recalculateWorkDay(user, day);
+        // Recalcular o dia de trabalho e a ordenação
+        recalculateDayPunches(user, day);
 
         // Enviar notificação WhatsApp
         if (!silent) {
@@ -69,6 +70,77 @@ public class TimeRecordService {
         }
 
         return saved;
+    }
+
+    @Transactional
+    public TimeRecord updateRecord(Usuario user, Long id, LocalDateTime newTimestamp, TimeRecord.PunchType newPunchType) {
+        TimeRecord record = timeRecordRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Registro de ponto não encontrado"));
+
+        if (!record.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Não autorizado a alterar este ponto");
+        }
+
+        LocalDate oldDate = record.getTimestamp().toLocalDate();
+        LocalDate newDate = newTimestamp.toLocalDate();
+
+        record.setTimestamp(newTimestamp);
+        if (newPunchType != null) {
+            record.setPunchType(newPunchType);
+        }
+        TimeRecord saved = timeRecordRepository.save(record);
+
+        // Recalcular batidas e resumo dos dias afetados
+        recalculateDayPunches(user, oldDate);
+        if (!oldDate.equals(newDate)) {
+            recalculateDayPunches(user, newDate);
+        }
+
+        return saved;
+    }
+
+    @Transactional
+    public void deleteRecord(Usuario user, Long id) {
+        TimeRecord record = timeRecordRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Registro de ponto não encontrado"));
+
+        if (!record.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Não autorizado a excluir este ponto");
+        }
+
+        LocalDate date = record.getTimestamp().toLocalDate();
+        timeRecordRepository.delete(record);
+
+        // Recalcular batidas e resumo do dia afetado
+        recalculateDayPunches(user, date);
+    }
+
+    @Transactional
+    public void recalculateDayPunches(Usuario user, LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(23, 59, 59);
+        List<TimeRecord> records = timeRecordRepository
+                .findByUserIdAndTimestampBetweenOrderByTimestampAsc(user.getId(), startOfDay, endOfDay);
+
+        if (records.isEmpty()) {
+            workDayRepository.findByUserIdAndDate(user.getId(), date)
+                    .ifPresent(workDayRepository::delete);
+            financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
+            return;
+        }
+
+        // Reordenar IN e OUT em sequência cronológica
+        for (int i = 0; i < records.size(); i++) {
+            TimeRecord r = records.get(i);
+            TimeRecord.PunchType expectedType = (i % 2 == 0) ? TimeRecord.PunchType.IN : TimeRecord.PunchType.OUT;
+            if (r.getPunchType() != expectedType) {
+                r.setPunchType(expectedType);
+                timeRecordRepository.save(r);
+            }
+        }
+
+        recalculateWorkDay(user, date);
+        financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
     }
 
     /** Global (não por usuário): o id da mensagem do Gmail é único independente do dono da batida. */

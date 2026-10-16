@@ -61,6 +61,38 @@ public class TimeRecordController {
         }
     }
 
+    @PutMapping("/time-records/{id}")
+    public ResponseEntity<?> updateRecord(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        try {
+            Usuario user = currentUser.get();
+            java.time.LocalDateTime timestamp = java.time.LocalDateTime.parse(body.get("timestamp"));
+            TimeRecord.PunchType type = (body.containsKey("punchType") && body.get("punchType") != null && !body.get("punchType").isEmpty())
+                    ? TimeRecord.PunchType.valueOf(body.get("punchType"))
+                    : null;
+            TimeRecord updated = timeRecordService.updateRecord(user, id, timestamp, type);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", String.valueOf(e.getMessage())));
+        }
+    }
+
+    @DeleteMapping("/time-records/{id}")
+    public ResponseEntity<?> deleteRecord(@PathVariable Long id) {
+        try {
+            Usuario user = currentUser.get();
+            timeRecordService.deleteRecord(user, id);
+            return ResponseEntity.ok(Map.of("status", "deleted"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", String.valueOf(e.getMessage())));
+        }
+    }
+
     @PostMapping("/work-days/{year}/{month}/{day}/recalculate")
     public ResponseEntity<Map<String, String>> recalculate(
             @PathVariable int year, @PathVariable int month, @PathVariable int day) {

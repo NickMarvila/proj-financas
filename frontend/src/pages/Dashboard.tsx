@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Clock, Wallet, AlertCircle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
-import { dashboardApi, gmailApi } from '../api/client';
-import type { Dashboard as DashboardData, GmailStatus } from '../types';
+import { dashboardApi, gmailApi, workDayApi, timeRecordApi } from '../api/client';
+import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord } from '../types';
 import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
-import { workDayApi, timeRecordApi } from '../api/client';
-import type { WorkDay } from '../types';
+import MonthCalendar from '../components/MonthCalendar';
+import DayPunchesPanel from '../components/DayPunchesPanel';
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -12,25 +12,32 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [history, setHistory] = useState<WorkDay[]>([]);
+  const [monthRecords, setMonthRecords] = useState<TimeRecord[]>([]);
+
+  const todayIso = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [selectedDay, setSelectedDay] = useState<WorkDay | null>(null);
   
   const [currentMonth, setCurrentMonth] = useState({
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1
   });
   
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(todayIso);
   const [manualTime, setManualTime] = useState('');
   const [savingManual, setSavingManual] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
-      const [d, g] = await Promise.all([
+      const [d, g, recs] = await Promise.all([
         dashboardApi.get(currentMonth.year, currentMonth.month),
-        gmailApi.getStatus().catch(() => null)
+        gmailApi.getStatus().catch(() => null),
+        timeRecordApi.getByMonth(currentMonth.year, currentMonth.month),
       ]);
       setData(d);
       setGmailStatus(g);
+      setMonthRecords(recs);
       
       const year = d.monthSummary?.year ?? currentMonth.year;
       const month = d.monthSummary?.month ?? currentMonth.month;
@@ -75,8 +82,23 @@ export default function Dashboard() {
 
       // Sort history descending by date
       fullHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
       setHistory(fullHistory);
+
+      // Atualizar dia selecionado
+      const curSelected = fullHistory.find(w => w.date === selectedDate);
+      if (curSelected) {
+        setSelectedDay(curSelected);
+      } else {
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const foundToday = fullHistory.find(w => w.date === todayStr);
+        if (foundToday) {
+          setSelectedDate(todayStr);
+          setSelectedDay(foundToday);
+        } else if (fullHistory.length > 0) {
+          setSelectedDate(fullHistory[0].date);
+          setSelectedDay(fullHistory[0]);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -126,7 +148,7 @@ export default function Dashboard() {
   );
   if (!data) return <div className="loading-page"><AlertCircle /> Erro ao carregar.</div>;
 
-  const { monthSummary: s, todayRecords, todayWorkDay } = data;
+  const { monthSummary: s, todayWorkDay } = data;
   const overtimeToday = todayWorkDay?.overtimeMinutes ?? 0;
   const totalOvertime = s?.totalOvertimeMinutes ?? 0;
 
@@ -135,6 +157,11 @@ export default function Dashboard() {
     const curr = new Date(currentMonth.year, currentMonth.month - 1, 20);
     const fd = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
     return `${fd(prev)} a ${fd(curr)}`;
+  };
+
+  const handleSelectCalendarDate = (dateStr: string, workDay: WorkDay | null) => {
+    setSelectedDate(dateStr);
+    setSelectedDay(workDay);
   };
 
   return (
@@ -190,7 +217,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card green">
           <div className="stat-icon"><TrendingUp size={20} /></div>
@@ -198,6 +225,7 @@ export default function Dashboard() {
           <div className="stat-value green">{formatCurrency(s?.finalBalance ?? 0)}</div>
           <div className="stat-sub">salário + extras − despesas</div>
         </div>
+
         <div className="stat-card purple">
           <div className="stat-icon"><Clock size={20} /></div>
           <div className="stat-label">Horas Extras Líquidas (mês)</div>
@@ -223,12 +251,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
         <div className="stat-card amber">
           <div className="stat-icon"><Wallet size={20} /></div>
           <div className="stat-label">Despesas Fixas</div>
           <div className="stat-value amber">{formatCurrency(s?.totalExpenses ?? 0)}</div>
           <div className="stat-sub">total do mês</div>
         </div>
+
         <div className="stat-card" style={{ borderColor: 'rgba(59,130,246,0.2)' }}>
           <div className="stat-icon" style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}>
             <TrendingUp size={20} />
@@ -332,33 +362,35 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* SEÇÃO PRINCIPAL: Calendário do Mês + Painel de Batidas (com Edição de Pontos) */}
       <div className="grid-2">
-        {/* Ponto de hoje */}
+        {/* Painel Esquerdo: Calendário Mensal com status verde e vermelho */}
         <div className="card">
-          <div className="section-title"><span className="dot" />Ponto em {formatDate(data.today)}</div>
-          {todayRecords.length === 0 ? (
-            <div className="empty-state" style={{ padding: '30px 0' }}>
-              <div className="empty-icon">🕐</div>
-              <p>Nenhuma batida registrada hoje</p>
-            </div>
-          ) : (
-            <div className="timeline">
-              {todayRecords.map(r => (
-                <div key={r.id} className="timeline-item">
-                  <div className={`timeline-dot ${r.punchType === 'IN' ? 'in' : 'out'}`} />
-                  <div>
-                    <div className={`timeline-label ${r.punchType === 'IN' ? 'in' : 'out'}`}>
-                      {r.punchType === 'IN' ? '▶ ENTRADA' : '⏹ SAÍDA'}
-                    </div>
-                    <div className="timeline-time">{new Date(r.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                    <div className="timeline-origin">{r.origin}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="section-title">
+            <span className="dot" />Calendário de Ponto — {MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}
+          </div>
+          <MonthCalendar
+            year={currentMonth.year}
+            month={currentMonth.month}
+            workDays={history}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectCalendarDate}
+          />
         </div>
 
+        {/* Painel Direito: Batidas do Dia Selecionado com Edição, Exclusão e Nova Batida */}
+        <div className="card">
+          <DayPunchesPanel
+            selectedDate={selectedDate}
+            workDay={selectedDay}
+            records={monthRecords}
+            onRefresh={load}
+          />
+        </div>
+      </div>
+
+      {/* SEÇÃO INFERIOR: Resumo Financeiro + Lançamento Manual Rápido */}
+      <div className="grid-2" style={{ marginTop: 24 }}>
         {/* Resumo financeiro */}
         <div className="card">
           <div className="section-title"><span className="dot" />Resumo do Mês</div>
@@ -434,14 +466,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid-2" style={{ marginTop: '20px' }}>
-        {/* Lançamento Manual */}
+        {/* Lançamento Manual Avulso */}
         <div className="card">
-          <div className="section-title"><span className="dot" />Lançamento Manual (Home Office)</div>
+          <div className="section-title"><span className="dot" />Lançamento Manual Rápido</div>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 15 }}>
-            Registre entradas ou saídas que não foram contabilizadas no sistema oficial (ex: pausa para o almoço aos sábados).
+            Registre entradas ou saídas manuais diretamente em qualquer data. Você também pode clicar no dia desejado no calendário acima para editar ou excluir batidas existentes.
           </p>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div className="form-group" style={{ marginBottom: 0, flex: '1 1 120px', minWidth: 0 }}>
@@ -456,52 +486,6 @@ export default function Dashboard() {
               {savingManual ? 'Salvando...' : 'Registrar Ponto'}
             </button>
           </div>
-        </div>
-
-        {/* Histórico do Mês */}
-        <div className="card">
-          <div className="section-title"><span className="dot" />Histórico do Mês ({history.length} dias)</div>
-          {history.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Nenhum registro encontrado neste mês.</p>
-          ) : (
-            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
-              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
-                    <th style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>Data</th>
-                    <th style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>Status</th>
-                    <th style={{ padding: '8px 0', color: 'var(--text-secondary)', textAlign: 'right' }}>Extra</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map(h => {
-                    const isCompensated = h.status === 'COMPENSATED';
-                    const isAbsentSaturday = h.isSaturday && (h.status === 'ABSENT');
-                    return (
-                      <tr key={h.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: isCompensated ? 'rgba(16,185,129,0.03)' : h.isSaturday ? 'rgba(251,191,36,0.03)' : 'transparent' }}>
-                        <td style={{ padding: '10px 0', fontWeight: 500, paddingLeft: '5px' }}>
-                          <span style={{ color: h.isSaturday ? '#fbbf24' : 'inherit' }}>{formatDate(h.date)}</span>
-                          {h.isSaturday && <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: 4, fontWeight: 700 }}>SÁB</span>}
-                        </td>
-                        <td style={{ padding: '10px 0' }}>
-                          <span style={{
-                            padding: '3px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                            backgroundColor: isCompensated ? 'rgba(16,185,129,0.15)' : h.status === 'OVERTIME' ? 'rgba(139,92,246,0.1)' : h.status === 'NORMAL' ? 'rgba(16,185,129,0.1)' : isAbsentSaturday ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.05)',
-                            color: isCompensated ? 'var(--accent-green)' : h.status === 'OVERTIME' ? 'var(--accent-purple)' : h.status === 'NORMAL' ? 'var(--accent-green)' : isAbsentSaturday ? 'var(--accent-red)' : 'var(--text-secondary)'
-                          }}>
-                            {isCompensated ? 'FOLGA COMP.' : h.status === 'OVERTIME' ? 'HORA EXTRA' : h.status === 'NORMAL' ? 'COMPLETO' : isAbsentSaturday ? 'FALTA' : 'INCOMPLETO'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 600, color: h.overtimeMinutes > 0 ? 'var(--accent-purple)' : isCompensated ? 'var(--accent-green)' : isAbsentSaturday ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
-                          {h.overtimeMinutes > 0 ? `+${formatMinutes(h.overtimeMinutes)}` : isCompensated ? 'Comp.' : isAbsentSaturday ? '-4h' : '--'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </div>
