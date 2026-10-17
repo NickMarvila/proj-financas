@@ -25,7 +25,7 @@ public final class GmailQueryBuilder {
     public static String buildPeriodQuery(LocalDate startDate, LocalDate endDate) {
         StringBuilder query = new StringBuilder(BASE_QUERY);
         if (startDate != null) {
-            long epochStart = startDate.atStartOfDay(SAO_PAULO).toEpochSecond();
+            long epochStart = startDate.atStartOfDay(SAO_PAULO).minusSeconds(1).toEpochSecond();
             query.append(" after:").append(epochStart);
         }
         if (endDate != null) {

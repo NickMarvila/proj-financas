@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink, Copy, Check } from 'lucide-react';
 import { gmailApi, whatsAppApi } from '../api/client';
 import type { GmailStatus } from '../types';
@@ -25,6 +25,14 @@ export default function Configuracoes() {
   const [advUserId, setAdvUserId] = useState<string>('');
   const [advLogs, setAdvLogs] = useState<{date: string, msg: string, status: string}[]>([]);
   const [advSyncing, setAdvSyncing] = useState(false);
+  const cancelSyncRef = useRef(false);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [advLogs]);
 
   const loadStatus = async () => {
     try {
@@ -82,28 +90,57 @@ export default function Configuracoes() {
 
   const runAdvancedSync = async () => {
     if (!advStartDate || !advEndDate) return alert("Selecione data inicial e final");
+    if (!advUserId) return alert("Selecione um usuário alvo para sincronizar");
+    const userId = parseInt(advUserId);
+
     setAdvSyncing(true);
     setAdvLogs([]);
+    cancelSyncRef.current = false;
     
     // Assegura que o timezone não mude a data selecionada
     const current = new Date(advStartDate + 'T12:00:00');
     const end = new Date(advEndDate + 'T12:00:00');
-    if (!advUserId) return alert("Selecione um usuário alvo para sincronizar");
-    const userId = parseInt(advUserId);
 
     while (current <= end) {
+      if (cancelSyncRef.current) {
+        setAdvLogs(prev => [...prev, { date: 'Aviso', msg: 'Sincronização interrompida pelo usuário', status: 'error' }]);
+        break;
+      }
+
       const dateStr = current.toISOString().split('T')[0];
-      const nextDay = new Date(current);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const nextDateStr = nextDay.toISOString().split('T')[0];
 
       setAdvLogs(prev => [...prev, { date: dateStr, msg: 'Buscando...', status: 'pending' }]);
       try {
-        const r = await gmailApi.syncAdvanced({ startDate: dateStr, endDate: nextDateStr, userId });
-        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: `${r.processed} batidas`, status: 'success' } : l));
+        // Envia startDate e endDate iguais para consultar com exatidão as 24h deste dia específico
+        const r = await gmailApi.syncAdvanced({ startDate: dateStr, endDate: dateStr, userId });
+        let msg = '';
+        let status = 'success';
+
+        if (r.processed > 0 && r.alreadyExisting > 0) {
+          msg = `${r.processed} nova(s) (${r.alreadyExisting} já salva(s))`;
+        } else if (r.processed > 0) {
+          msg = `${r.processed} nova(s) batida(s)`;
+        } else if (r.alreadyExisting > 0) {
+          msg = `${r.alreadyExisting} batida(s) já existente(s)`;
+          status = 'existing';
+        } else {
+          msg = '0 batidas (sem registros)';
+          status = 'empty';
+        }
+
+        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg, status } : l));
       } catch (e: any) {
-        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: e.response?.data?.message || `Erro`, status: 'error' } : l));
+        const errMsg = e.response?.data?.message || 'Erro';
+        setAdvLogs(prev => prev.map(l => l.date === dateStr ? { ...l, msg: errMsg, status: 'error' } : l));
+        
+        // Se houver rate limit da API do Google, aguarda 4 segundos antes do próximo dia
+        if (errMsg.includes('rateLimitExceeded') || e.response?.status === 429) {
+          await new Promise(r => setTimeout(r, 4000));
+        }
       }
+
+      // Intervalo de 600ms entre as requisições diárias para respeitar a cota da API do Google
+      await new Promise(r => setTimeout(r, 600));
       current.setDate(current.getDate() + 1);
     }
     setAdvSyncing(false);
@@ -333,17 +370,41 @@ export default function Configuracoes() {
                 <input type="date" className="form-input" value={advEndDate} onChange={e => setAdvEndDate(e.target.value)} />
               </div>
             </div>
-            <button className="btn btn-primary" onClick={runAdvancedSync} disabled={advSyncing}>
-              {advSyncing ? 'Sincronizando lote...' : 'Iniciar Sincronização'}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={runAdvancedSync}
+                disabled={advSyncing}
+                style={{ flex: 1 }}
+              >
+                {advSyncing ? 'Sincronizando lote...' : 'Iniciar Sincronização'}
+              </button>
+              {advSyncing && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => { cancelSyncRef.current = true; }}
+                  style={{ minWidth: 90 }}
+                >
+                  Parar
+                </button>
+              )}
+            </div>
             
             {advLogs.length > 0 && (
-              <div style={{ marginTop: 12, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)', maxHeight: 200, overflowY: 'auto' }}>
+              <div
+                ref={logContainerRef}
+                style={{ marginTop: 12, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)', maxHeight: 220, overflowY: 'auto' }}
+              >
                 {advLogs.map(l => (
                   <div key={l.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{l.date}</span>
                     <span style={{ 
                       color: l.status === 'success' ? 'var(--accent-green)' : 
+                             l.status === 'existing' ? '#60a5fa' :
+                             l.status === 'pending' ? 'var(--accent-amber)' :
+                             l.status === 'empty' ? 'var(--text-muted)' :
                              l.status === 'error' ? 'var(--accent-red)' : 'var(--text-primary)' 
                     }}>
                       {l.msg}

@@ -13,6 +13,9 @@ import com.financasponto.entity.TimeRecord;
 import com.financasponto.entity.Usuario;
 import com.financasponto.repository.UsuarioRepository;
 import com.financasponto.utils.PunchTextParser;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -192,6 +195,15 @@ public class GmailService {
         return "financasponto";
     }
 
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class SyncResult {
+        private int processed;
+        private int alreadyExisting;
+        private int totalFound;
+    }
+
     public int syncUser(Usuario user) {
         if (!"CONECTADO".equals(user.getGmailStatus())) return 0;
         try {
@@ -203,18 +215,18 @@ public class GmailService {
             String query = com.financasponto.utils.GmailQueryBuilder.buildIncrementalQuery(user.getGmailLastSync(), syncFrom);
             
             java.time.LocalDateTime syncStartTime = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Sao_Paulo"));
-            int processed = processMessagesForUser(service, user, query, false);
+            SyncResult result = processMessagesForUser(service, user, query, false);
             
             user.setGmailLastSync(syncStartTime);
             usuarioRepository.save(user);
-            return processed;
+            return result.getProcessed();
         } catch (Exception e) {
             handleSyncError(e, user);
             return 0;
         }
     }
 
-    public int syncUserPeriod(Usuario user, java.time.LocalDate startDate, java.time.LocalDate endDate) throws Exception {
+    public SyncResult syncUserPeriod(Usuario user, java.time.LocalDate startDate, java.time.LocalDate endDate) throws Exception {
         if (!"CONECTADO".equals(user.getGmailStatus())) {
             throw new IllegalArgumentException("Usuário não está conectado ao Gmail");
         }
@@ -244,17 +256,39 @@ public class GmailService {
         log.error("Erro ao sincronizar usuário {}: {}", user.getId(), e.getMessage());
     }
 
-    private int processMessagesForUser(Gmail service, Usuario user, String query, boolean syncHistory) throws Exception {
+    private SyncResult processMessagesForUser(Gmail service, Usuario user, String query, boolean syncHistory) throws Exception {
         int totalProcessed = 0;
+        int alreadyExisting = 0;
+        int totalFound = 0;
         String pageToken = null;
 
         do {
             log.info("Executando query no Gmail: {}", query);
-            ListMessagesResponse response = service.users().messages()
-                    .list("me")
-                    .setQ(query)
-                    .setPageToken(pageToken)
-                    .execute();
+            ListMessagesResponse response = null;
+            int listRetries = 0;
+            while (listRetries < 3) {
+                try {
+                    response = service.users().messages()
+                            .list("me")
+                            .setQ(query)
+                            .setPageToken(pageToken)
+                            .execute();
+                    break;
+                } catch (Exception e) {
+                    if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
+                        listRetries++;
+                        long waitTime = 3000L * listRetries;
+                        log.warn("Rate limit no list() do Gmail (tentativa {}/3). Aguardando {}ms...", listRetries, waitTime);
+                        Thread.sleep(waitTime);
+                    } else {
+                        throw e;
+                    }
+                }
+            }
+
+            if (response == null) {
+                break;
+            }
 
             List<Message> messages = response.getMessages();
             log.info("O Gmail retornou {} mensagens", messages == null ? 0 : messages.size());
@@ -263,8 +297,11 @@ public class GmailService {
                 break;
             }
 
+            totalFound += messages.size();
+
             for (Message msgRef : messages) {
                 if (timeRecordService.isAlreadyProcessed(msgRef.getId())) {
+                    alreadyExisting++;
                     continue;
                 }
 
@@ -299,7 +336,7 @@ public class GmailService {
                         if (e.getMessage() != null && e.getMessage().contains("rateLimitExceeded")) {
                             retryCount++;
                             if (retryCount < maxRetries) {
-                                long backoff = 5000L * retryCount;
+                                long backoff = 4000L * retryCount;
                                 java.lang.Thread.sleep(backoff);
                             }
                         } else {
@@ -307,12 +344,12 @@ public class GmailService {
                         }
                     }
                 }
-                java.lang.Thread.sleep(syncHistory ? 1000 : 300);
+                java.lang.Thread.sleep(syncHistory ? 600 : 200);
             }
             pageToken = response.getNextPageToken();
         } while (pageToken != null);
 
-        return totalProcessed;
+        return new SyncResult(totalProcessed, alreadyExisting, totalFound);
     }
 
     private String extractTextFromMessage(Gmail service, Message message) throws Exception {

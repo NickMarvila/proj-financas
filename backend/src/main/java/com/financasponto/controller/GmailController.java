@@ -99,10 +99,14 @@ public class GmailController {
             java.time.LocalDate start = java.time.LocalDate.parse(dto.getStartDate());
             java.time.LocalDate end = java.time.LocalDate.parse(dto.getEndDate());
             
-            int count = gmailService.syncUserPeriod(targetUser, start, end);
-            return ResponseEntity.ok(Map.of("processed", count));
+            com.financasponto.service.GmailService.SyncResult result = gmailService.syncUserPeriod(targetUser, start, end);
+            return ResponseEntity.ok(Map.of(
+                "processed", result.getProcessed(),
+                "alreadyExisting", result.getAlreadyExisting(),
+                "totalFound", result.getTotalFound()
+            ));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro"));
         }
     }
 }
