@@ -89,7 +89,7 @@ export const gmailApi = {
   disconnect: () => api.post<{ success: boolean }>('/gmail/disconnect').then(r => r.data),
   sync: () => api.post<{ processed: number }>('/gmail/sync').then(r => r.data),
   syncAdvanced: (data: { startDate: string, endDate: string, userId: number }) =>
-    api.post<{ processed: number; alreadyExisting: number; totalFound: number }>('/gmail/sync-advanced', data).then(r => r.data),
+    api.post<{ processed: number; alreadyExisting: number; totalFound: number; dbCount?: number }>('/gmail/sync-advanced', data).then(r => r.data),
 };
 
 export const profileApi = {

@@ -14,6 +14,7 @@ import java.util.Map;
 public class GmailController {
 
     private final GmailService gmailService;
+    private final com.financasponto.service.TimeRecordService timeRecordService;
     private final com.financasponto.repository.UsuarioRepository usuarioRepository;
 
     private com.financasponto.entity.Usuario getLoggedUser(java.security.Principal principal) {
@@ -100,10 +101,12 @@ public class GmailController {
             java.time.LocalDate end = java.time.LocalDate.parse(dto.getEndDate());
             
             com.financasponto.service.GmailService.SyncResult result = gmailService.syncUserPeriod(targetUser, start, end);
+            long dbCount = timeRecordService.countRecordsForDay(targetUser.getId(), start);
             return ResponseEntity.ok(Map.of(
                 "processed", result.getProcessed(),
                 "alreadyExisting", result.getAlreadyExisting(),
-                "totalFound", result.getTotalFound()
+                "totalFound", result.getTotalFound(),
+                "dbCount", dbCount
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage() != null ? e.getMessage() : "Erro"));

@@ -247,4 +247,9 @@ public class TimeRecordService {
         return timeRecordRepository.findByUserIdAndTimestampBetweenOrderByTimestampAsc(
                 user.getId(), start.atStartOfDay(), end.atTime(23, 59, 59));
     }
+
+    public long countRecordsForDay(Long userId, LocalDate date) {
+        if (userId == null || date == null) return 0;
+        return timeRecordRepository.countByUserIdAndDate(userId, date.atStartOfDay());
+    }
 }

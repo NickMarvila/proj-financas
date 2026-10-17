@@ -113,18 +113,19 @@ export default function Configuracoes() {
       try {
         // Envia startDate e endDate iguais para consultar com exatidão as 24h deste dia específico
         const r = await gmailApi.syncAdvanced({ startDate: dateStr, endDate: dateStr, userId });
+        const existingCount = Math.max(r.alreadyExisting || 0, r.dbCount || 0);
         let msg = '';
         let status = 'success';
 
-        if (r.processed > 0 && r.alreadyExisting > 0) {
-          msg = `${r.processed} nova(s) (${r.alreadyExisting} já salva(s))`;
+        if (r.processed > 0 && existingCount > 0) {
+          msg = `${r.processed} nova(s) (+${existingCount} já salvas)`;
         } else if (r.processed > 0) {
-          msg = `${r.processed} nova(s) batida(s)`;
-        } else if (r.alreadyExisting > 0) {
-          msg = `${r.alreadyExisting} batida(s) já existente(s)`;
+          msg = `${r.processed} nova(s) batida(s) importada(s)`;
+        } else if (existingCount > 0) {
+          msg = `${existingCount} batida(s) já salvas anteriormente`;
           status = 'existing';
         } else {
-          msg = '0 batidas (sem registros)';
+          msg = '0 batidas (sem registros / folga)';
           status = 'empty';
         }
 
@@ -405,8 +406,13 @@ export default function Configuracoes() {
                              l.status === 'existing' ? '#60a5fa' :
                              l.status === 'pending' ? 'var(--accent-amber)' :
                              l.status === 'empty' ? 'var(--text-muted)' :
-                             l.status === 'error' ? 'var(--accent-red)' : 'var(--text-primary)' 
+                             l.status === 'error' ? 'var(--accent-red)' : 'var(--text-primary)',
+                      fontWeight: l.status === 'success' || l.status === 'existing' ? 500 : 400
                     }}>
+                      {l.status === 'success' ? '✅ ' :
+                       l.status === 'existing' ? 'ℹ️ ' :
+                       l.status === 'empty' ? '⚪ ' :
+                       l.status === 'error' ? '🔴 ' : ''}
                       {l.msg}
                     </span>
                   </div>
