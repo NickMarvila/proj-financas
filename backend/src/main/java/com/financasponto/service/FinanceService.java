@@ -154,7 +154,6 @@ public class FinanceService {
                     .compensatedMinutes(compensatedMinutes)
                     .overtimePay(BigDecimal.ZERO)
                     .totalExpenses(BigDecimal.ZERO)
-                    .carriedOver(BigDecimal.ZERO)
                     .finalBalance(BigDecimal.ZERO)
                     .missingSaturdays(missingSaturdays)
                     .workedSaturdays((int) workedSaturdays)
@@ -193,8 +192,8 @@ public class FinanceService {
                 .map(Expense::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal carriedOver = getCarriedOverFromPreviousMonth(userId, month, year);
-        BigDecimal finalBalance = baseSalary.add(overtimePay).subtract(totalExpenses).add(carriedOver);
+        // Balanço isolado do ciclo: nada de meses anteriores entra no saldo
+        BigDecimal finalBalance = baseSalary.add(overtimePay).subtract(totalExpenses);
 
         MonthlySummary summary = monthlySummaryRepository.findByUserIdAndMonthAndYear(userId, month, year)
                 .orElse(MonthlySummary.builder().user(user).month(month).year(year).build());
@@ -203,7 +202,6 @@ public class FinanceService {
         summary.setTotalOvertimeMinutes(overtimeMinutes);
         summary.setOvertimePay(overtimePay);
         summary.setTotalExpenses(totalExpenses);
-        summary.setCarriedOver(carriedOver);
         summary.setFinalBalance(finalBalance);
         summary.setMissingSaturdays(missingSaturdays);
         MonthlySummary saved = monthlySummaryRepository.save(summary);
@@ -214,14 +212,6 @@ public class FinanceService {
         saved.setCompensatedMinutes(compensatedMinutes);
 
         return saved;
-    }
-
-    private BigDecimal getCarriedOverFromPreviousMonth(Long userId, int month, int year) {
-        List<MonthlySummary> prev = monthlySummaryRepository.findPreviousMonthsByUserId(userId, month, year);
-        if (prev.isEmpty()) return BigDecimal.ZERO;
-        MonthlySummary last = prev.get(0);
-        BigDecimal balance = last.getFinalBalance();
-        return (balance != null && balance.compareTo(BigDecimal.ZERO) > 0) ? balance : BigDecimal.ZERO;
     }
 
     public MonthlySummary getSummary(Usuario user, int year, int month) {

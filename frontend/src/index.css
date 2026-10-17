@@ -210,21 +210,6 @@ body::before {
 .page-title { font-size: 28px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
 .page-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 6px; }
 
-/* ===== Carry Over Banner ===== */
-.carry-over-banner {
-  display: flex; align-items: center; gap: 16px;
-  background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(124,58,237,0.12));
-  border: 1px solid rgba(16,185,129,0.25);
-  border-radius: var(--radius-md);
-  padding: 16px 24px;
-  margin-bottom: 28px;
-  backdrop-filter: blur(10px);
-}
-.carry-over-banner .cob-icon { font-size: 28px; }
-.carry-over-banner .cob-text { flex: 1; }
-.carry-over-banner .cob-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
-.carry-over-banner .cob-value { font-size: 22px; font-weight: 800; color: var(--accent-green); }
-
 /* ===== Timeline ===== */
 .timeline { display: flex; flex-direction: column; gap: 0; }
 .timeline-item {
@@ -461,10 +446,6 @@ tbody td { padding: 14px 16px; color: var(--text-primary); }
   .stat-label { font-size: 11px; }
   .stat-value { font-size: 20px; }
   .stat-sub { font-size: 11px; }
-
-  /* Carry Over Banner */
-  .carry-over-banner { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
-  .carry-over-banner .cob-value { font-size: 18px; }
 
   /* Tables */
   .table-wrap { margin: 0 -16px; padding: 0 16px; }

@@ -46,10 +46,6 @@ public class MonthlySummary {
     @Column(name = "total_expenses", precision = 10, scale = 2)
     private BigDecimal totalExpenses;
 
-    // Sobra do mês anterior
-    @Column(name = "carried_over", precision = 10, scale = 2)
-    private BigDecimal carriedOver;
-
     @Column(name = "final_balance", precision = 10, scale = 2)
     private BigDecimal finalBalance;
 
@@ -82,6 +78,5 @@ public class MonthlySummary {
     void prePersist() {
         this.updatedAt = LocalDateTime.now();
         if (this.closed == null) this.closed = false;
-        if (this.carriedOver == null) this.carriedOver = BigDecimal.ZERO;
     }
 }

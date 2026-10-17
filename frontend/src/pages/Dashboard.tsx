@@ -205,18 +205,6 @@ export default function Dashboard() {
         </a>
       )}
 
-      {/* Carry Over Banner */}
-      {s?.carriedOver > 0 && (
-        <div className="carry-over-banner">
-          <span className="cob-icon">🎉</span>
-          <div className="cob-text">
-            <div className="cob-label">Sobra do mês anterior</div>
-            <div className="cob-value">+{formatCurrency(s.carriedOver)}</div>
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>já incluído no saldo</span>
-        </div>
-      )}
-
       {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card green">
@@ -452,13 +440,6 @@ export default function Dashboard() {
               <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Despesas Fixas</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-red)' }}>−{formatCurrency(s?.totalExpenses ?? 0)}</span>
             </div>
-
-            {(s?.carriedOver ?? 0) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Sobra Anterior</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-amber)' }}>+{formatCurrency(s?.carriedOver ?? 0)}</span>
-              </div>
-            )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Saldo Final Projetado</span>

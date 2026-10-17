@@ -67,7 +67,6 @@ export interface MonthlySummary {
   compensatedMinutes?: number;
   overtimePay: number;
   totalExpenses: number;
-  carriedOver: number;
   finalBalance: number;
   missingSaturdays?: number;
   workedSaturdays?: number;

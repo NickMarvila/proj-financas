@@ -150,7 +150,6 @@ public class SchedulerService {
             "💰 *Valor extras:* R$ %s\n\n" +
             "💼 *Salário base:* R$ %s\n" +
             "💳 *Despesas:* R$ %s\n" +
-            "📦 *Sobra do mês ant.:* R$ %s\n" +
             "✅ *Saldo projetado:* *R$ %s*",
             today.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
             pontos.toString().trim(),
@@ -159,7 +158,6 @@ public class SchedulerService {
             safeStr(summary.getOvertimePay()),
             safeStr(summary.getBaseSalary()),
             safeStr(summary.getTotalExpenses()),
-            safeStr(summary.getCarriedOver()),
             safeStr(summary.getFinalBalance())
         );
     }

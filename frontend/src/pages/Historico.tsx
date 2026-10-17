@@ -41,11 +41,6 @@ export default function Historico() {
                     <div style={{ fontSize: 18, fontWeight: 800 }}>
                       {MONTH_NAMES[s.month - 1]} {s.year}
                     </div>
-                    {(s.carriedOver ?? 0) > 0 && (
-                      <div style={{ fontSize: 12, color: 'var(--accent-amber)', marginTop: 2 }}>
-                        🎁 +{formatCurrency(s.carriedOver)} sobra do mês anterior
-                      </div>
-                    )}
                   </div>
                   <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                     <Cell label="Salário" value={formatCurrency(s.baseSalary)} />
