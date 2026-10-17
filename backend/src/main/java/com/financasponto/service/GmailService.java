@@ -279,7 +279,7 @@ public class GmailService {
                         listRetries++;
                         long waitTime = 3000L * listRetries;
                         log.warn("Rate limit no list() do Gmail (tentativa {}/3). Aguardando {}ms...", listRetries, waitTime);
-                        Thread.sleep(waitTime);
+                        java.lang.Thread.sleep(waitTime);
                     } else {
                         throw e;
                     }
