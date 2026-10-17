@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mail, CheckCircle, AlertTriangle, XCircle, LogOut, Calendar, User, Key, Clock } from 'lucide-react';
+import { Mail, CheckCircle, AlertTriangle, XCircle, LogOut, Calendar, User, Key, Clock, ExternalLink, Copy, Check } from 'lucide-react';
 import { gmailApi, profileApi } from '../api/client';
 import { GmailStatus } from '../types';
 import { WorkScheduleEditor } from '../components/WorkScheduleEditor';
@@ -9,6 +9,7 @@ export default function Perfil() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<GmailStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [syncFromDate, setSyncFromDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
@@ -132,9 +133,27 @@ export default function Perfil() {
         </div>
       )}
       {gmailResult === 'erro' && (
-        <div className="alert" style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: 16, borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <XCircle size={24} />
-          <strong>Erro ao conectar Gmail:</strong> {gmailError}
+        <div className="alert" style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: 16, borderRadius: 8, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <XCircle size={24} />
+            <div>
+              <strong>Erro ao conectar Gmail:</strong> {gmailError}
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, paddingLeft: 36 }}>
+            Se o Google bloqueou dizendo <em>"Acesso bloqueado: o app não concluiu a verificação"</em> ou <em>"access_denied"</em>, é necessário incluir o e-mail na lista de <strong>Usuários de Teste</strong> no painel do Google Cloud.
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a
+                href={`https://console.cloud.google.com/apis/credentials/consent?project=${status?.projectId || 'financasponto'}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              >
+                <ExternalLink size={14} /> Abrir Google Cloud para Liberar este E-mail
+              </a>
+            </div>
+          </div>
         </div>
       )}
 
@@ -382,6 +401,60 @@ export default function Perfil() {
                     <LogOut size={16} /> Desconectar
                   </button>
                 </div>
+
+                {/* Box de Ajuda / Acesso ao Google Cloud */}
+                {(() => {
+                  const googleUrl = `https://console.cloud.google.com/apis/credentials/consent?project=${status?.projectId || 'financasponto'}`;
+                  return (
+                    <div style={{
+                      marginTop: 20,
+                      padding: '14px 16px',
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: 'var(--radius-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <ExternalLink size={16} color="#60a5fa" />
+                          <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+                            Painel Google Cloud (Adicionar E-mails de Teste)
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              navigator.clipboard.writeText(googleUrl);
+                              setCopiedLink(true);
+                              setTimeout(() => setCopiedLink(false), 2000);
+                            }}
+                            title="Copiar link"
+                            style={{ fontSize: 11, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            {copiedLink ? <Check size={13} color="var(--accent-green)" /> : <Copy size={13} />}
+                            {copiedLink ? 'Copiado!' : 'Copiar Link'}
+                          </button>
+                          <a
+                            href={googleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-secondary"
+                            style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                          >
+                            <ExternalLink size={13} /> Abrir no Google Cloud
+                          </a>
+                        </div>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                        Para autorizar novos e-mails a sincronizarem sem erro 403, cadastre-os na seção <strong>Usuários de teste (Test users)</strong> do Google Cloud Console.
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

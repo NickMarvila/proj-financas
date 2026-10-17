@@ -176,6 +176,22 @@ public class GmailService {
         return Files.exists(Paths.get(credentialsPath));
     }
 
+    public String getProjectId() {
+        try {
+            Path credFile = Paths.get(credentialsPath);
+            if (Files.exists(credFile)) {
+                GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY,
+                        new InputStreamReader(new FileInputStream(credFile.toFile())));
+                if (clientSecrets.getDetails() != null && clientSecrets.getDetails().get("project_id") != null) {
+                    return clientSecrets.getDetails().get("project_id").toString();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Não foi possível ler project_id de credentials.json: {}", e.getMessage());
+        }
+        return "financasponto";
+    }
+
     public int syncUser(Usuario user) {
         if (!"CONECTADO".equals(user.getGmailStatus())) return 0;
         try {

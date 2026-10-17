@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut, User
+  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut, User, ExternalLink
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
@@ -58,10 +58,12 @@ function MobileBottomNav() {
 function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userName, setUserName] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     authApi.me().then(u => {
       setUserName(u.employeeName || u.username);
+      setIsAdmin(u.role === 'ADMIN');
     }).catch(() => {});
   }, []);
 
@@ -95,13 +97,37 @@ function MainLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
+        <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 16px' }}>
+          {isAdmin && (
+            <a
+              href="https://console.cloud.google.com/apis/credentials/consent?project=financasponto"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Adicionar e-mails de teste no Google Cloud Console"
+              style={{
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                padding: '6px 8px',
+                borderRadius: 6,
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                transition: 'all 0.2s',
+              }}
+            >
+              <ExternalLink size={13} color="#60a5fa" />
+              <span>Google Cloud (Test Users)</span>
+            </a>
+          )}
           <button 
             onClick={() => {
               localStorage.removeItem('token');
               window.location.href = '/login';
             }}
-            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13}}
+            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13}}
           >
             <LogOut size={14} /> Sair
           </button>

@@ -57,6 +57,7 @@ public class GmailController {
         com.financasponto.entity.Usuario user = getLoggedUser(principal);
         return ResponseEntity.ok(Map.of(
             "hasCredentials", gmailService.hasCredentials(),
+            "projectId", gmailService.getProjectId() != null ? gmailService.getProjectId() : "financasponto",
             "status", user.getGmailStatus() != null ? user.getGmailStatus() : "DESCONECTADO",
             "email", user.getGmailEmail() != null ? user.getGmailEmail() : "",
             "syncFrom", user.getGmailSyncFrom() != null ? user.getGmailSyncFrom() : "",

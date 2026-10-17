@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink, Copy, Check } from 'lucide-react';
 import { gmailApi, whatsAppApi } from '../api/client';
 import type { GmailStatus } from '../types';
 
@@ -17,6 +17,7 @@ export default function Configuracoes() {
   const [authSuccess, setAuthSuccess] = useState<boolean | null>(null);
   const [generatingQr, setGeneratingQr] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const [users, setUsers] = useState<any[]>([]);
   const [advStartDate, setAdvStartDate] = useState('');
@@ -126,18 +127,83 @@ export default function Configuracoes() {
           <div className="grid-2">
             {/* Gmail */}
             <div className="card">
-          <div className="section-title"><span className="dot" />Gmail Integration</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <StatusRow label="credentials.json" ok={gmailStatus?.hasCredentials ?? false}
-              okText="Encontrado" failText="Não encontrado" />
-            
-            <div style={{ padding: 14, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              <strong style={{ color: 'var(--text-primary)' }}>Mudança na Integração Gmail:</strong><br />
-              A partir de agora, cada usuário deve conectar seu próprio e-mail do Gmail na página <strong>Meu Perfil</strong>. 
-              As credenciais globais cadastradas aqui no servidor servem apenas para habilitar o aplicativo OAuth2 do Google.
+              <div className="section-title"><span className="dot" />Gmail Integration</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <StatusRow label="credentials.json" ok={gmailStatus?.hasCredentials ?? false}
+                  okText="Encontrado" failText="Não encontrado" />
+
+                {/* Box de Acesso Rápido ao Painel do Google Cloud */}
+                {(() => {
+                  const googleUrl = `https://console.cloud.google.com/apis/credentials/consent?project=${gmailStatus?.projectId || 'financasponto'}`;
+                  return (
+                    <div style={{
+                      padding: 16,
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: 'var(--radius-md)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <ExternalLink size={18} color="#60a5fa" />
+                          <strong style={{ color: 'var(--text-primary)', fontSize: 14 }}>
+                            Liberar E-mails de Teste no Google
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              navigator.clipboard.writeText(googleUrl);
+                              setCopiedLink(true);
+                              setTimeout(() => setCopiedLink(false), 2000);
+                            }}
+                            title="Copiar link direto para abrir em outro navegador"
+                            style={{ fontSize: 12, padding: '7px 10px', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                          >
+                            {copiedLink ? <Check size={14} color="var(--accent-green)" /> : <Copy size={14} />}
+                            {copiedLink ? 'Copiado!' : 'Copiar Link'}
+                          </button>
+                          <a
+                            href={googleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, textDecoration: 'none', padding: '7px 14px' }}
+                          >
+                            <ExternalLink size={15} />
+                            Abrir Painel Google Cloud
+                          </a>
+                        </div>
+                      </div>
+
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        Como o app OAuth ainda está em modo de teste no Google Cloud, <strong>novos e-mails só conseguem conectar após serem liberados na lista de "Usuários de teste"</strong> para evitar erro 403 / "App não verificado".
+                      </p>
+
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'rgba(0,0,0,0.25)', padding: '10px 12px', borderRadius: 6, lineHeight: 1.6 }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                          📋 Passo a passo para liberar novo e-mail:
+                        </div>
+                        1. Clique em <strong>Abrir Painel Google Cloud</strong> acima.<br />
+                        2. Na tela que abrir, role até a seção <strong>Usuários de teste</strong> (Test users).<br />
+                        3. Clique em <strong>+ ADD USERS</strong> (ou <em>Adicionar usuários</em>).<br />
+                        4. Digite o e-mail Google que deseja autorizar e clique em <strong>Salvar</strong>.<br />
+                        5. Pronto! O colaborador já poderá conectar o Gmail na página <strong>Meu Perfil</strong>.
+                      </div>
+                    </div>
+                  );
+                })()}
+                
+                <div style={{ padding: 14, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Conexão individual por usuário:</strong><br />
+                  Cada colaborador deve acessar <strong>Meu Perfil</strong> para conectar sua respectiva conta Gmail e sincronizar os comprovantes da pmovel.
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
 
         {/* WhatsApp */}
