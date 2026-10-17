@@ -40,6 +40,12 @@ public class TimeRecordService {
             return null;
         }
 
+        // Mesma batida (mesmo usuário e mesmo instante) vinda em outro e-mail
+        if (timeRecordRepository.existsByUserIdAndTimestamp(user.getId(), timestamp)) {
+            log.info("Batida duplicada ignorada [{}]: {}", user.getUsername(), timestamp);
+            return null;
+        }
+
         // Determinar IN ou OUT baseado na quantidade de batidas do dia DESTE usuário
         LocalDate day = timestamp.toLocalDate();
         long countToday = timeRecordRepository.countByUserIdAndDate(user.getId(), day.atStartOfDay());

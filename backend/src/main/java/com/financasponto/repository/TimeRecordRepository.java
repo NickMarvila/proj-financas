@@ -12,6 +12,8 @@ public interface TimeRecordRepository extends JpaRepository<TimeRecord, Long> {
 
     Optional<TimeRecord> findByEmailMessageId(String emailMessageId);
 
+    boolean existsByUserIdAndTimestamp(Long userId, LocalDateTime timestamp);
+
     List<TimeRecord> findByUserIdAndTimestampBetweenOrderByTimestampAsc(Long userId, LocalDateTime start, LocalDateTime end);
 
     @Query("SELECT t FROM TimeRecord t WHERE t.user.id = :userId AND FUNCTION('DATE', t.timestamp) = FUNCTION('DATE', :date) ORDER BY t.timestamp ASC")

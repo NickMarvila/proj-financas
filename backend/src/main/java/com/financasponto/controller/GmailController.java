@@ -100,8 +100,9 @@ public class GmailController {
             java.time.LocalDate start = java.time.LocalDate.parse(dto.getStartDate());
             java.time.LocalDate end = java.time.LocalDate.parse(dto.getEndDate());
             
-            com.financasponto.service.GmailService.SyncResult result = gmailService.syncUserPeriod(targetUser, start, end);
+            // Contagem ANTES da sincronização: batidas que já estavam salvas, sem incluir as recém-importadas
             long dbCount = timeRecordService.countRecordsForDay(targetUser.getId(), start);
+            com.financasponto.service.GmailService.SyncResult result = gmailService.syncUserPeriod(targetUser, start, end);
             return ResponseEntity.ok(Map.of(
                 "processed", result.getProcessed(),
                 "alreadyExisting", result.getAlreadyExisting(),
