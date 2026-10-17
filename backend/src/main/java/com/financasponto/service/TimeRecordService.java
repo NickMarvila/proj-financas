@@ -166,9 +166,7 @@ public class TimeRecordService {
 
         // Calcular minutos trabalhados (pares IN/OUT)
         int workedMinutes = 0;
-        int postNoonOvertime = 0;
         boolean isSaturday = date.getDayOfWeek() == DayOfWeek.SATURDAY;
-        LocalDateTime noon = date.atTime(12, 0);
 
         for (int i = 0; i + 1 < records.size(); i += 2) {
             TimeRecord in = records.get(i);
@@ -177,34 +175,12 @@ public class TimeRecordService {
             long totalMins = Duration.between(in.getTimestamp(), out.getTimestamp()).toMinutes();
             if (totalMins > 0) {
                 workedMinutes += (int) totalMins;
-                
-                if (isSaturday) {
-                    LocalDateTime inTime = in.getTimestamp();
-                    LocalDateTime outTime = out.getTimestamp();
-                    
-                    if (!inTime.isBefore(noon)) {
-                        // Período inteiro foi após as 12h
-                        postNoonOvertime += (int) totalMins;
-                    } else if (outTime.isAfter(noon)) {
-                        // Começou antes, mas cruzou as 12h
-                        postNoonOvertime += (int) Duration.between(noon, outTime).toMinutes();
-                    }
-                }
             }
         }
 
         int contractMinutes = (isSaturday ? saturdayContractHours : dailyContractHours) * 60;
-        int overtimeMinutes = 0;
-
-        if (isSaturday) {
-            int normalWorked = workedMinutes - postNoonOvertime;
-            overtimeMinutes = postNoonOvertime;
-            if (normalWorked > contractMinutes) {
-                overtimeMinutes += (normalWorked - contractMinutes);
-            }
-        } else {
-            overtimeMinutes = Math.max(0, workedMinutes - contractMinutes);
-        }
+        // Hora extra só existe depois de cumprida a jornada normal do dia
+        int overtimeMinutes = Math.max(0, workedMinutes - contractMinutes);
 
         BigDecimal overtimeValue = calculateOvertimeValue(user.getId(), overtimeMinutes);
 
