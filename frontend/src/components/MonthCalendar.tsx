@@ -87,6 +87,14 @@ export default function MonthCalendar({
           // Verde: dias cumpridos corretamente / folgas compensadas
           // Vermelho: incompleto / faltando horas / faltas
           // Neutro: DSR e dias futuros
+          const toShortHours = (mins: number) => {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h${String(m).padStart(2, '0')}`;
+          };
+
           let tone = '';
           let subText = '--';
           let badgeText = '';
@@ -99,19 +107,16 @@ export default function MonthCalendar({
             tone = 'sunday';
             subText = 'DSR';
           } else if (workDay?.status === 'COMPENSATED') {
-            // SÁBADO DE FOLGA COMPENSADA -> VERDINHO!
             tone = 'green';
-            subText = 'Compensado';
-            badgeText = 'Folga Comp.';
+            subText = 'Comp.';
+            badgeText = 'Folga';
             badgeColor = '#34d399';
           } else if (workDay?.status === 'INCOMPLETE') {
-            // JORNADA INCOMPLETA -> VERMELHO!
             tone = 'red';
-            subText = formatMinutes(workDay.workedMinutes);
-            badgeText = 'Incompleto';
+            subText = toShortHours(workDay.workedMinutes);
+            badgeText = 'Incompl.';
             badgeColor = '#f87171';
           } else if (workDay?.status === 'ABSENT') {
-            // FALTA REAL -> VERMELHO!
             tone = 'red';
             subText = 'Falta';
             badgeText = '-4h';
@@ -121,22 +126,19 @@ export default function MonthCalendar({
             const isFullyWorked = workDay.workedMinutes >= contract;
 
             if (isFullyWorked) {
-              // CONCLUÍDO CORRETAMENTE -> VERDINHO!
               tone = 'green';
-              subText = formatMinutes(workDay.workedMinutes);
-              badgeText = workDay.overtimeMinutes > 0 ? `+${formatMinutes(workDay.overtimeMinutes)}` : 'OK';
+              subText = toShortHours(workDay.workedMinutes);
+              badgeText = workDay.overtimeMinutes > 0 ? `+${toShortHours(workDay.overtimeMinutes)}` : 'OK';
               badgeColor = workDay.overtimeMinutes > 0 ? 'var(--accent-amber)' : '#34d399';
             } else {
-              // FALTANDO HORAS -> VERMELHO!
               tone = 'red';
-              subText = formatMinutes(workDay.workedMinutes);
+              subText = toShortHours(workDay.workedMinutes);
               badgeText = 'Faltando';
               badgeColor = '#f87171';
             }
           } else {
-            // DIA ÚTIL PASSADO SEM BATIDA -> VERMELHO!
             tone = 'red soft';
-            subText = 'Sem batida';
+            subText = 'Sem ponto';
             badgeText = 'Falta';
             badgeColor = '#f87171';
           }
