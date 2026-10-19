@@ -143,26 +143,30 @@ export default function Ponto() {
         </div>
       </div>
 
-      {/* Resumo do mês */}
-      <div className="stats-grid" style={{ marginBottom: 28 }}>
-        <div className="stat-card purple">
-          <div className="stat-icon" style={{ background: 'var(--accent-purple-dim)', color: 'var(--accent-purple-light)' }}>⏱</div>
-          <div className="stat-label">Total Trabalhado</div>
-          <div className="stat-value purple">{formatMinutes(totalWorked)}</div>
-        </div>
-        <div className="stat-card amber">
-          <div className="stat-icon" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber)' }}>⚡</div>
-          <div className="stat-label">Horas Extras Líquidas</div>
-          <div className="stat-value amber">{formatMinutes(netOvertime)}</div>
-          <div className="stat-sub">
-            Brutas: +{formatMinutes(grossOvertime)} | Comp: −{formatMinutes(compensatedMinutes)}
+      {/* Resumo do mês em ribbon de 3 colunas perfeitamente equilibrado */}
+      <div className="dash-metrics-strip" style={{ marginBottom: 16 }}>
+        <div className="dash-metric-card purple">
+          <div className="metric-head">
+            <span>⏱ Trabalhado</span>
           </div>
+          <div className="metric-val">{formatMinutes(totalWorked)}</div>
+          <div className="metric-foot">Carga do ciclo</div>
         </div>
-        <div className="stat-card green">
-          <div className="stat-icon"><span>📅</span></div>
-          <div className="stat-label">Dias Registrados</div>
-          <div className="stat-value green">{workDays.length}</div>
-          <div className="stat-sub">{overtimeDays} dia(s) com horas extras</div>
+
+        <div className="dash-metric-card amber">
+          <div className="metric-head">
+            <span>⚡ Extras Líquidas</span>
+          </div>
+          <div className="metric-val">{formatMinutes(netOvertime)}</div>
+          <div className="metric-foot amber">Brutas: +{formatMinutes(grossOvertime)}</div>
+        </div>
+
+        <div className="dash-metric-card green">
+          <div className="metric-head">
+            <span>📅 Dias Fechados</span>
+          </div>
+          <div className="metric-val">{workDays.length}</div>
+          <div className="metric-foot green">{overtimeDays} com extra</div>
         </div>
       </div>
 

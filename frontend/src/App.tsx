@@ -91,6 +91,17 @@ function MainLayout() {
 
   return (
     <div className="app-layout">
+      {/* Mobile Top Bar */}
+      <header className="mobile-topbar">
+        <div className="mobile-topbar-brand">
+          <span className="brand-dot">💰</span>
+          <span className="brand-name">FinançasPonto</span>
+        </div>
+        <div className="mobile-topbar-user">
+          <span className="user-pill">{userName ? `Olá, ${userName.split(' ')[0]}` : 'Conectado'}</span>
+        </div>
+      </header>
+
       {/* Mobile overlay */}
       <div
         className={`mobile-overlay${mobileMenuOpen ? ' visible' : ''}`}
