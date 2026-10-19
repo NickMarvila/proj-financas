@@ -120,7 +120,7 @@ export default function Perfil() {
   };
 
   return (
-    <div className="perfil-container fade-in" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="perfil-container fade-in">
       <h1 className="page-title">Meu Perfil</h1>
       <p className="page-subtitle" style={{ marginBottom: 32 }}>
         Gerencie sua conexão com o Gmail e dados pessoais.
@@ -372,7 +372,7 @@ export default function Perfil() {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 14 }}>
+                <div className="kv-grid">
                   <span style={{ color: 'var(--text-secondary)' }}>E-mail:</span>
                   <strong style={{ color: 'var(--text-primary)' }}>{status.email}</strong>
 
@@ -391,7 +391,7 @@ export default function Perfil() {
                   </button>
                 )}
 
-                <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
                   {status.status === 'EXPIRED' && (
                     <button className="btn btn-primary" onClick={handleConnect}>
                       Reconectar Gmail

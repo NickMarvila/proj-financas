@@ -37,12 +37,12 @@ export default function Historico() {
                 borderLeft: `4px solid ${isPositive ? 'var(--accent-green)' : 'var(--accent-red)'}`
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
-                  <div style={{ minWidth: 140 }}>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>
                       {MONTH_NAMES[s.month - 1]} {s.year}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div className="hist-cells">
                     <Cell label="Salário" value={formatCurrency(s.baseSalary)} />
                     <Cell label="Extras" value={`${formatMinutes(s.totalOvertimeMinutes)}`}
                       sub={formatCurrency(s.overtimePay)} color="var(--accent-purple-light)" />

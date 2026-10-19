@@ -64,7 +64,7 @@ export default function Financas() {
       <div className="grid-2">
         {/* Salário */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             <div className="section-title" style={{ marginBottom: 0 }}><span className="dot" />Configuração de Salário</div>
             {!editingSalary
               ? <button id="btn-edit-salary" className="btn btn-secondary btn-sm" onClick={() => setEditingSalary(true)}><Edit2 size={14} />Editar</button>
@@ -130,11 +130,11 @@ export default function Financas() {
 
         {/* Despesas */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             <div className="section-title" style={{ marginBottom: 0 }}><span className="dot" />Despesas Fixas</div>
             <button id="btn-add-expense" className="btn btn-primary btn-sm" onClick={openNewExpense}><Plus size={14} />Adicionar</button>
           </div>
-          <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--accent-red-dim)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ marginBottom: 16, padding: '12px 16px', background: 'var(--accent-red-dim)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Total mensal</span>
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--accent-red)' }}>{formatCurrency(totalExpenses)}</span>
           </div>
@@ -145,7 +145,7 @@ export default function Financas() {
               return (
                 <div key={e.id} className="expense-item">
                   <span style={{ fontSize: 20 }}>{cat?.emoji ?? '💼'}</span>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="expense-name">{e.name}</div>
                     <div className="expense-due">{e.dueDay ? `Vence dia ${e.dueDay}` : 'Sem vencimento'} · {e.recurring ? 'Recorrente' : 'Pontual'}</div>
                   </div>
@@ -211,7 +211,7 @@ export default function Financas() {
 
 function Row({ label, value, big }: { label: string; value: string; big?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2px 12px', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
       <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
       <span style={{ fontSize: big ? 20 : 15, fontWeight: big ? 800 : 600, color: big ? 'var(--accent-green)' : 'var(--text-primary)' }}>{value}</span>
     </div>

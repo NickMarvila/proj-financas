@@ -87,7 +87,9 @@ export default function Login() {
 
 const styles = {
   container: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
+    padding: '16px',
+    boxSizing: 'border-box' as const,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -99,7 +101,7 @@ const styles = {
     background: 'rgba(31, 41, 55, 0.7)',
     backdropFilter: 'blur(10px)',
     borderRadius: '16px',
-    padding: '40px',
+    padding: 'clamp(24px, 7vw, 40px)',
     width: '100%',
     maxWidth: '400px',
     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -156,6 +158,7 @@ const styles = {
   button: {
     marginTop: '8px',
     padding: '12px',
+    minHeight: '48px',
     background: 'linear-gradient(to right, #3b82f6, #8b5cf6)',
     color: '#fff',
     border: 'none',

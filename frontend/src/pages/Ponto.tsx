@@ -129,17 +129,17 @@ export default function Ponto() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="page-header page-header-row">
         <div>
           <h1 className="page-title">Registros de Ponto</h1>
           <p className="page-subtitle">Histórico de batidas e horas trabalhadas</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="btn btn-secondary btn-icon" onClick={prevMonth}><ChevronLeft size={16} /></button>
-          <span style={{ fontWeight: 700, minWidth: 130, textAlign: 'center' }}>
+        <div className="month-nav">
+          <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
+          <span className="month-nav-label">
             {MONTH_NAMES[month - 1]} {year}
           </span>
-          <button className="btn btn-secondary btn-icon" onClick={nextMonth}><ChevronRight size={16} /></button>
+          <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={nextMonth}><ChevronRight size={16} /></button>
         </div>
       </div>
 

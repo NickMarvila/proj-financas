@@ -166,22 +166,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className="page-header page-header-row">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <div className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>
+          <div className="page-subtitle month-nav">
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>
               <ChevronLeft size={16} />
             </button>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ minWidth: '120px', textAlign: 'center', fontWeight: 600 }}>
-                {MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                ({getCycleDatesStr()})
-              </span>
+            <div className="month-nav-label">
+              <span>{MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}</span>
+              <small>({getCycleDatesStr()})</small>
             </div>
-            <button className="btn btn-secondary btn-sm" style={{ padding: '4px 8px' }} onClick={() => setCurrentMonth(prev => prev.month === 12 ? { year: prev.year + 1, month: 1 } : { ...prev, month: prev.month + 1 })}>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={() => setCurrentMonth(prev => prev.month === 12 ? { year: prev.year + 1, month: 1 } : { ...prev, month: prev.month + 1 })}>
               <ChevronRight size={16} />
             </button>
           </div>
@@ -195,7 +191,7 @@ export default function Dashboard() {
       {/* Gmail Banner */}
       {gmailStatus && (gmailStatus.status === 'DESCONECTADO' || gmailStatus.status === 'EXPIRED') && (
         <a href="/perfil" style={{ textDecoration: 'none' }}>
-          <div style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: '16px', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <AlertCircle size={20} />
               <strong>{gmailStatus.status === 'EXPIRED' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</strong>
@@ -339,7 +335,7 @@ export default function Dashboard() {
               {s?.workedSaturdays ?? 0} de {s?.requiredSaturdays ?? 2} obrigatórios trabalhados
             </strong> ({s?.totalSaturdays ?? 4} no mês)
           </div>
-          <div style={{ display: 'flex', gap: 14 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
             <span style={{ color: 'var(--accent-amber)' }}>
               Compensação: <strong>−{formatMinutes(s?.compensatedMinutes ?? 480)}</strong>
             </span>

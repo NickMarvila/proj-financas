@@ -522,7 +522,7 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
                         </div>
 
                         {/* Android Time Pickers (Entrada -> Saída) */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           {/* Entrada Button */}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

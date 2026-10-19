@@ -118,8 +118,9 @@ export const AndroidTimePickerModal: React.FC<AndroidTimePickerModalProps> = ({
   // Handle dial click/drag
   const handleDialClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left - CENTER;
-    const clickY = e.clientY - rect.top - CENTER;
+    const scale = rect.width > 0 ? rect.width / CLOCK_SIZE : 1; // SVG pode ser reduzido em telas estreitas
+    const clickX = (e.clientX - rect.left) / scale - CENTER;
+    const clickY = (e.clientY - rect.top) / scale - CENTER;
     const dist = Math.sqrt(clickX * clickX + clickY * clickY);
 
     // Angle: atan2 returns -PI to PI where (1,0) is 0 rad.
@@ -158,6 +159,7 @@ export const AndroidTimePickerModal: React.FC<AndroidTimePickerModalProps> = ({
         justifyContent: 'center',
         zIndex: 9999,
         padding: '16px',
+        overflowY: 'auto',
         animation: 'fadeIn 0.2s ease-out',
       }}
       onClick={(e) => {
@@ -169,6 +171,7 @@ export const AndroidTimePickerModal: React.FC<AndroidTimePickerModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '380px',
+          margin: 'auto',
           background: 'rgba(15, 18, 28, 0.96)',
           border: '1px solid rgba(16, 185, 129, 0.3)',
           borderRadius: '24px',

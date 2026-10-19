@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Clock, Wallet, Settings, History, Menu, X, LogOut, User, ExternalLink
+  LayoutDashboard, Clock, Wallet, Settings, History, Menu, LogOut, User, ExternalLink
 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Ponto from './pages/Ponto';
@@ -29,27 +29,36 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function MobileBottomNav() {
+// Destinos fixos na barra inferior do celular; o restante fica no drawer (botão "Menu")
+const primaryNavItems = navItems.slice(0, 4);
+const drawerOnlyPaths = navItems.slice(4).map(i => i.to);
+
+function MobileBottomNav({ menuOpen, onToggleMenu }: { menuOpen: boolean; onToggleMenu: () => void }) {
+  const { pathname } = useLocation();
+  const menuActive = menuOpen || drawerOnlyPaths.some(p => pathname.startsWith(p));
+
   return (
-    <nav className="mobile-bottom-nav">
-      {navItems.map(({ to, icon: Icon, label, end }) => (
+    <nav className="mobile-bottom-nav" aria-label="Navegação principal">
+      {primaryNavItems.map(({ to, icon: Icon, label, end }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
           className={({ isActive }) => `mob-nav-item${isActive ? ' active' : ''}`}
         >
-          <Icon size={20} />
+          <Icon size={22} />
           <span>{label}</span>
         </NavLink>
       ))}
       <button
-        className="mob-nav-item"
-        onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }}
-        style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer' }}
+        type="button"
+        className={`mob-nav-item${menuActive ? ' active' : ''}`}
+        onClick={onToggleMenu}
+        aria-expanded={menuOpen}
+        aria-controls="app-drawer"
       >
-        <LogOut size={20} />
-        <span>Sair</span>
+        <Menu size={22} />
+        <span>Menu</span>
       </button>
     </nav>
   );
@@ -67,6 +76,19 @@ function MainLayout() {
     }).catch(() => {});
   }, []);
 
+  // Drawer aberto: fecha com Esc e trava a rolagem do fundo
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileMenuOpen(false); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileMenuOpen]);
+
   return (
     <div className="app-layout">
       {/* Mobile overlay */}
@@ -75,7 +97,7 @@ function MainLayout() {
         onClick={() => setMobileMenuOpen(false)}
       />
 
-      <aside className={`sidebar${mobileMenuOpen ? ' mobile-open' : ''}`}>
+      <aside id="app-drawer" className={`sidebar${mobileMenuOpen ? ' mobile-open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-icon">💰</div>
           <div>
@@ -112,6 +134,7 @@ function MainLayout() {
                 gap: 8,
                 fontSize: 12,
                 padding: '6px 8px',
+                minHeight: 44,
                 borderRadius: 6,
                 background: 'rgba(59, 130, 246, 0.08)',
                 border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -127,7 +150,7 @@ function MainLayout() {
               localStorage.removeItem('token');
               window.location.href = '/login';
             }}
-            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13}}
+            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px 8px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 6, fontSize: 14}}
           >
             <LogOut size={14} /> Sair
           </button>
@@ -146,7 +169,10 @@ function MainLayout() {
       </main>
 
       {/* Mobile bottom navigation */}
-      <MobileBottomNav />
+      <MobileBottomNav
+        menuOpen={mobileMenuOpen}
+        onToggleMenu={() => setMobileMenuOpen(o => !o)}
+      />
     </div>
   );
 }

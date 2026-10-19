@@ -107,7 +107,6 @@ export default function DayPunchesPanel({
         <button
           className="btn btn-secondary btn-sm"
           onClick={() => setShowAddForm(!showAddForm)}
-          style={{ padding: '4px 8px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <Plus size={14} />
           {showAddForm ? 'Fechar' : 'Nova Batida'}
@@ -130,17 +129,15 @@ export default function DayPunchesPanel({
           <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Adicionar horário:</span>
           <input
             type="time"
-            className="form-input"
+            className="form-input input-compact"
             value={newTime}
             onChange={e => setNewTime(e.target.value)}
-            style={{ width: 120, padding: '4px 8px', fontSize: 13 }}
             required
           />
           <button
             type="submit"
             className="btn btn-primary btn-sm"
             disabled={addingNew || !newTime}
-            style={{ padding: '4px 12px', fontSize: 12 }}
           >
             {addingNew ? 'Salvando...' : 'Adicionar'}
           </button>
@@ -236,40 +233,40 @@ export default function DayPunchesPanel({
                         <div className="timeline-time">{formatTime(r.timestamp)}</div>
                       ) : (
                         /* Campo de edição inline de horário */
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
                           <input
                             type="time"
-                            className="form-input"
+                            className="form-input input-compact"
                             value={editTime}
                             onChange={e => setEditTime(e.target.value)}
-                            style={{ padding: '2px 6px', fontSize: 13, width: 100 }}
                             autoFocus
                           />
                           <select
-                            className="form-input"
+                            className="form-input input-compact"
                             value={editPunchType}
                             onChange={e => setEditPunchType(e.target.value as 'IN' | 'OUT')}
-                            style={{ padding: '2px 6px', fontSize: 11, width: 90 }}
                           >
                             <option value="IN">Entrada</option>
                             <option value="OUT">Saída</option>
                           </select>
                           <button
-                            className="btn btn-primary btn-icon"
+                            type="button"
+                            className="icon-btn primary"
                             onClick={() => handleSaveEdit(r)}
                             disabled={savingEdit}
                             title="Salvar alteração"
-                            style={{ padding: 4, width: 26, height: 26 }}
+                            aria-label="Salvar alteração"
                           >
-                            <Check size={14} />
+                            <Check size={16} />
                           </button>
                           <button
-                            className="btn btn-secondary btn-icon"
+                            type="button"
+                            className="icon-btn"
                             onClick={handleCancelEdit}
                             title="Cancelar"
-                            style={{ padding: 4, width: 26, height: 26 }}
+                            aria-label="Cancelar edição"
                           >
-                            <X size={14} />
+                            <X size={16} />
                           </button>
                         </div>
                       )}
@@ -285,22 +282,24 @@ export default function DayPunchesPanel({
 
                     {/* Botões de Ação: Editar e Excluir */}
                     {!isEditing && (
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 6 }}>
                         <button
-                          className="btn btn-secondary btn-icon"
+                          type="button"
+                          className="icon-btn"
                           onClick={() => handleStartEdit(r)}
                           title="Alterar ponto"
-                          style={{ padding: '3px 6px', height: 26, width: 26, color: 'var(--text-secondary)' }}
+                          aria-label="Alterar ponto"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={14} />
                         </button>
                         <button
-                          className="btn btn-secondary btn-icon"
+                          type="button"
+                          className="icon-btn danger"
                           onClick={() => handleDelete(r)}
                           title="Excluir ponto"
-                          style={{ padding: '3px 6px', height: 26, width: 26, color: 'var(--accent-red)' }}
+                          aria-label="Excluir ponto"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     )}

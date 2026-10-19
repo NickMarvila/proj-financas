@@ -190,7 +190,7 @@ export default function Configuracoes() {
                             Liberar E-mails de Teste no Google
                           </strong>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           <button
                             type="button"
                             className="btn btn-secondary"
@@ -259,7 +259,7 @@ export default function Configuracoes() {
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Escaneie o QR Code:</div>
                 <div className="qr-container">
-                  <img src={`data:image/png;base64,${extractQr(qrCode)}`} alt="QR Code WhatsApp" style={{ width: 200, height: 200 }} />
+                  <img src={`data:image/png;base64,${extractQr(qrCode)}`} alt="QR Code WhatsApp" />
                 </div>
               </div>
             )}
@@ -361,12 +361,12 @@ export default function Configuracoes() {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0, flex: '1 1 140px' }}>
                 <label className="form-label">Data Inicial</label>
                 <input type="date" className="form-input" value={advStartDate} onChange={e => setAdvStartDate(e.target.value)} />
               </div>
-              <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+              <div className="form-group" style={{ marginBottom: 0, flex: '1 1 140px' }}>
                 <label className="form-label">Data Final</label>
                 <input type="date" className="form-input" value={advEndDate} onChange={e => setAdvEndDate(e.target.value)} />
               </div>
@@ -399,7 +399,7 @@ export default function Configuracoes() {
                 style={{ marginTop: 12, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-sm)', maxHeight: 220, overflowY: 'auto' }}
               >
                 {advLogs.map(l => (
-                  <div key={l.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={l.date} style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2px 12px', fontSize: 12, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>{l.date}</span>
                     <span style={{ 
                       color: l.status === 'success' ? 'var(--accent-green)' : 
