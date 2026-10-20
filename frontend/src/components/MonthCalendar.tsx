@@ -114,7 +114,7 @@ export default function MonthCalendar({
           } else if (workDay?.status === 'INCOMPLETE') {
             tone = 'red';
             subText = toShortHours(workDay.workedMinutes);
-            badgeText = 'Incompl.';
+            badgeText = 'Incomp.';
             badgeColor = '#f87171';
           } else if (workDay?.status === 'ABSENT') {
             tone = 'red';
@@ -133,12 +133,12 @@ export default function MonthCalendar({
             } else {
               tone = 'red';
               subText = toShortHours(workDay.workedMinutes);
-              badgeText = 'Faltando';
+              badgeText = 'Falta';
               badgeColor = '#f87171';
             }
           } else {
             tone = 'red soft';
-            subText = 'Sem ponto';
+            subText = '--';
             badgeText = 'Falta';
             badgeColor = '#f87171';
           }
