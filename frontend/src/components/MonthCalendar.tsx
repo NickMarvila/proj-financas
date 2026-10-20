@@ -154,14 +154,11 @@ export default function MonthCalendar({
               aria-label={label}
               aria-pressed={isSelected}
             >
-              {/* Linha superior: Dia + Indicador Hoje / Sáb */}
+              {/* Linha superior: Dia (com destaque se for hoje ou sábado) */}
               <div className="cal-top">
-                <span className="cal-day">{String(day).padStart(2, '0')}</span>
-                {isToday ? (
-                  <span className="cal-tag today">HOJE</span>
-                ) : dayOfWeek === 6 ? (
-                  <span className="cal-tag">SÁB</span>
-                ) : null}
+                <span className={`cal-day${isToday ? ' today' : ''}${dayOfWeek === 6 ? ' sat' : ''}`}>
+                  {day}
+                </span>
               </div>
 
               {/* Linha intermediária: Horas ou status */}

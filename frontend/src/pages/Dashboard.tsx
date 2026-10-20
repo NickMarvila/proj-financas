@@ -263,17 +263,17 @@ export default function Dashboard() {
         >
           <div className="schedule-btn-left">
             <div className="schedule-mini-icon">⚖️</div>
-            <div>
+            <div className="schedule-btn-texts">
               <div className="schedule-btn-title">
-                Escala 6x1: {s?.workedSaturdays ?? 0} de {s?.requiredSaturdays ?? 2} sábados cumpridos
+                Escala 6×1: {s?.workedSaturdays ?? 0} de {s?.requiredSaturdays ?? 2} sábados
               </div>
               <div className="schedule-btn-sub">
-                Seg–Qui (+30m/dia) compensam 2 sábados de folga
+                Seg–Qui compensam 2 sábados de folga
               </div>
             </div>
           </div>
           <div className="schedule-btn-right">
-            <span className="badge badge-green" style={{ fontSize: 10 }}>Comp. −{formatMinutes(s?.compensatedMinutes ?? 480)}</span>
+            <span className="badge badge-green schedule-badge">Comp. −{formatMinutes(s?.compensatedMinutes ?? 480)}</span>
             <ChevronDown size={16} className={`chevron-arrow ${showScheduleDetails ? 'open' : ''}`} />
           </div>
         </button>
@@ -384,29 +384,29 @@ export default function Dashboard() {
             </div>
 
             {s?.requiredSaturdays != null && s.requiredSaturdays > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
                 <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Sábados Cumpridos</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: (s?.missingSaturdays ?? 0) === 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>
-                  {s.workedSaturdays ?? 0} de {s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no mês)
+                <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', color: (s?.missingSaturdays ?? 0) === 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>
+                  {s.workedSaturdays ?? 0}/{s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no mês)
                 </span>
               </div>
             )}
 
             {(s?.missingSaturdays ?? 0) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6 }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Faltas (Sábados Obrigatórios)</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-red)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6, flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Faltas (Sábados)</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-red)' }}>
                   −{(s?.missingSaturdays ?? 0)} sábado(s) = −{(s?.missingSaturdays ?? 0) * 4}h
                 </span>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
               <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Despesas Fixas</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-red)' }}>−{formatCurrency(s?.totalExpenses ?? 0)}</span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', flexWrap: 'wrap', gap: 6 }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Saldo Final Projetado</span>
               <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-green)' }}>{formatCurrency(s?.finalBalance ?? 0)}</span>
             </div>
