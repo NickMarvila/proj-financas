@@ -78,6 +78,11 @@ public class MultiTenantMigration {
                   END LOOP;
                 END $$;
                 """);
+        try {
+            jdbc.execute("ALTER TABLE work_days DROP CONSTRAINT IF EXISTS work_days_status_check");
+        } catch (Exception e) {
+            log.warn("[multi-tenant] Aviso ao tentar remover work_days_status_check: {}", e.getMessage());
+        }
     }
 
     private Long resolveLegacyOwnerId() {
