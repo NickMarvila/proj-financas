@@ -30,6 +30,8 @@ export const authApi = {
   login: (data: any) => api.post('/auth/login', data).then(r => r.data),
   register: (data: any) => api.post('/auth/register', data).then(r => r.data),
   getUsers: () => api.get<any[]>('/auth/users').then(r => r.data),
+  changeUserPassword: (userId: number, newPassword: string) =>
+    api.put<{ message: string; username?: string }>(`/auth/users/${userId}/password`, { newPassword }).then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data),
 };
 export const dashboardApi = {

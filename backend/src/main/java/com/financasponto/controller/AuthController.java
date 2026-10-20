@@ -113,8 +113,42 @@ public class AuthController {
             map.put("username", u.getUsername());
             map.put("employeeName", u.getEmployeeName());
             map.put("cpf", u.getCpf());
+            map.put("role", u.getRole() != null ? u.getRole().name() : "USER");
+            map.put("whatsappPhone", u.getWhatsappPhone());
             return map;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(users);
+    }
+
+    /**
+     * Permite que administradores alterem a senha de qualquer usuário.
+     */
+    @PutMapping("/users/{id}/password")
+    public ResponseEntity<?> changeUserPassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Usuario currentUserEntity = currentUser.get();
+        if (currentUserEntity.getRole() != Usuario.Role.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Apenas administradores podem alterar senhas de usuários."));
+        }
+        String newPassword = body.get("newPassword");
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "A nova senha não pode ser vazia."));
+        }
+        if (newPassword.trim().length() < 3) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "A nova senha deve ter no mínimo 3 caracteres."));
+        }
+        Usuario target = usuarioRepository.findById(id).orElse(null);
+        if (target == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Usuário não encontrado."));
+        }
+        target.setPassword(passwordEncoder.encode(newPassword.trim()));
+        usuarioRepository.save(target);
+        return ResponseEntity.ok(Map.of(
+                "message", "Senha do usuário '" + target.getUsername() + "' atualizada com sucesso!",
+                "username", target.getUsername()
+        ));
     }
 }

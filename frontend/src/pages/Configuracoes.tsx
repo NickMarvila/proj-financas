@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink, Copy, Check } from 'lucide-react';
-import { gmailApi, whatsAppApi } from '../api/client';
-import type { GmailStatus } from '../types';
+import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink, Copy, Check, Key, Lock, Eye, EyeOff, X } from 'lucide-react';
+import { gmailApi, whatsAppApi, authApi } from '../api/client';
+import type { GmailStatus, UserSummary } from '../types';
 
 export default function Configuracoes() {
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
@@ -19,7 +19,14 @@ export default function Configuracoes() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [pwdModalUser, setPwdModalUser] = useState<UserSummary | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdMessage, setPwdMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const [advStartDate, setAdvStartDate] = useState('');
   const [advEndDate, setAdvEndDate] = useState('');
   const [advUserId, setAdvUserId] = useState<string>('');
@@ -36,7 +43,6 @@ export default function Configuracoes() {
 
   const loadStatus = async () => {
     try {
-      const { authApi } = await import('../api/client');
       const u = await authApi.me();
       setIsAdmin(u.role === 'ADMIN');
     } catch(e) {}
@@ -51,13 +57,52 @@ export default function Configuracoes() {
 
   const loadUsers = async () => {
     try {
-      const { authApi } = await import('../api/client');
       const u = await authApi.getUsers();
       setUsers(u);
     } catch(e) {}
   };
 
   useEffect(() => { loadStatus(); loadUsers(); }, []);
+
+  const handleOpenPwdModal = (u: UserSummary) => {
+    setPwdModalUser(u);
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setPwdMessage(null);
+  };
+
+  const handleSaveUserPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pwdModalUser) return;
+    if (!newPassword || newPassword.trim().length < 3) {
+      setPwdMessage({ type: 'error', text: 'A nova senha deve ter no mínimo 3 caracteres.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdMessage({ type: 'error', text: 'As senhas não coincidem. Digite novamente.' });
+      return;
+    }
+    setPwdLoading(true);
+    setPwdMessage(null);
+    try {
+      const res = await authApi.changeUserPassword(pwdModalUser.id, newPassword.trim());
+      setPwdMessage({ type: 'success', text: res.message || 'Senha alterada com sucesso!' });
+      setTimeout(() => {
+        setPwdModalUser(null);
+        setNewPassword('');
+        setConfirmPassword('');
+        setPwdMessage(null);
+      }, 1200);
+    } catch (err: any) {
+      setPwdMessage({
+        type: 'error',
+        text: err.response?.data?.message || err.message || 'Erro ao alterar senha.'
+      });
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
 
 
@@ -302,10 +347,10 @@ export default function Configuracoes() {
               role: (form.elements.namedItem('role') as HTMLSelectElement).value,
             };
             try {
-              const { authApi } = await import('../api/client');
               await authApi.register(data);
               alert('Usuário criado com sucesso!');
               form.reset();
+              await loadUsers();
             } catch (err: any) {
               alert('Erro ao criar usuário: ' + (err.response?.data || err.message));
             }
@@ -341,6 +386,107 @@ export default function Configuracoes() {
               Criar Usuário
             </button>
           </form>
+        </div>
+
+        {/* Gerenciamento de Usuários e Troca de Senha */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="section-title" style={{ margin: 0 }}>
+              <span className="dot" />Usuários & Troca de Senha ({users.length})
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={loadUsers}
+              title="Atualizar lista"
+              style={{ padding: '4px 8px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              <RefreshCw size={12} /> Atualizar
+            </button>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            Como administrador, você pode redefinir a senha de qualquer usuário diretamente.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto', paddingRight: 4 }}>
+            {users.length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+                Nenhum usuário cadastrado.
+              </div>
+            ) : (
+              users.map((u) => {
+                const isAdminUser = u.role === 'ADMIN';
+                return (
+                  <div
+                    key={u.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      background: 'var(--bg-secondary, rgba(255, 255, 255, 0.03))',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: '50%',
+                          background: isAdminUser ? 'rgba(139, 92, 246, 0.18)' : 'rgba(16, 185, 129, 0.15)',
+                          color: isAdminUser ? '#a78bfa' : '#34d399',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {u.username ? u.username.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                            {u.username}
+                          </span>
+                          <span
+                            className={isAdminUser ? 'badge-purple' : 'badge-green'}
+                            style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4 }}
+                          >
+                            {isAdminUser ? 'Admin' : 'Funcionário'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {u.employeeName || 'Sem nome vinculado'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenPwdModal(u)}
+                      style={{
+                        padding: '6px 10px',
+                        fontSize: 12,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Key size={13} />
+                      <span>Trocar Senha</span>
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
@@ -423,6 +569,158 @@ export default function Configuracoes() {
         </div>
       </div>
         </>
+      )}
+
+      {/* Modal de Troca de Senha de Usuário (Admin) */}
+      {pwdModalUser && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !pwdLoading) setPwdModalUser(null);
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card, #111827)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg, 12px)',
+              width: '100%',
+              maxWidth: 440,
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.6)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Key size={18} color="var(--accent-primary, #3b82f6)" />
+                <span style={{ fontSize: 16, fontWeight: 700 }}>
+                  Redefinir Senha
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => !pwdLoading && setPwdModalUser(null)}
+                style={{ padding: 4 }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSaveUserPassword} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '10px 12px', borderRadius: 8, fontSize: 13 }}>
+                <div>Usuário: <strong style={{ color: 'var(--text-primary)' }}>@{pwdModalUser.username}</strong></div>
+                {pwdModalUser.employeeName && (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 2 }}>
+                    Colaborador: {pwdModalUser.employeeName}
+                  </div>
+                )}
+              </div>
+
+              {pwdMessage && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    background: pwdMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    border: `1px solid ${pwdMessage.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    color: pwdMessage.type === 'success' ? '#34d399' : '#f87171',
+                  }}
+                >
+                  {pwdMessage.text}
+                </div>
+              )}
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Nova Senha</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    className="form-input"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 3 caracteres"
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      padding: 4,
+                    }}
+                    title={showPassword ? 'Ocultar' : 'Exibir'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Confirmar Nova Senha</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  className="form-input"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repita a nova senha"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={pwdLoading}
+                  onClick={() => setPwdModalUser(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={pwdLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Lock size={15} />
+                  {pwdLoading ? 'Salvando...' : 'Salvar Nova Senha'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

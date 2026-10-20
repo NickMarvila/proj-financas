@@ -100,3 +100,13 @@ export interface GmailStatus {
   syncFrom: string;
   lastSync: string;
 }
+
+export interface UserSummary {
+  id: number;
+  username: string;
+  employeeName?: string;
+  cpf?: string;
+  role?: 'ADMIN' | 'USER';
+  whatsappPhone?: string;
+}
+
