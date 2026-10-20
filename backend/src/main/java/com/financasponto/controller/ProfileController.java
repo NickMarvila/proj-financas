@@ -21,6 +21,7 @@ public class ProfileController {
     private final UsuarioRepository usuarioRepository;
     private final CurrentUser currentUser;
     private final PasswordEncoder passwordEncoder;
+    private final com.financasponto.service.TimeRecordService timeRecordService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getProfile() {
@@ -96,8 +97,20 @@ public class ProfileController {
         user.setFirstDayOfWeek(dto.getFirstDayOfWeek());
         user.setFirstDayOfMonth(dto.getFirstDayOfMonth());
 
-        usuarioRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", "Perfil atualizado com sucesso"));
+        Usuario saved = usuarioRepository.save(user);
+        try {
+            timeRecordService.recalculateAllForUser(saved);
+        } catch (Exception e) {
+            // log e continua
+        }
+        return ResponseEntity.ok(Map.of("message", "Perfil e horários recalculados com sucesso"));
+    }
+
+    @PostMapping("/recalculate")
+    public ResponseEntity<?> recalculate() {
+        Usuario user = currentUser.get();
+        timeRecordService.recalculateAllForUser(user);
+        return ResponseEntity.ok(Map.of("message", "Horas e cálculos recalculados com base na escala atual"));
     }
 
     @Data

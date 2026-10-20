@@ -107,18 +107,16 @@ export default function Ponto() {
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
-  // Cálculo das horas extras transparentes:
+  // Horas extras reais trabalhadas além da jornada contratual diária
   const grossOvertime = workDays
     .filter(w => w.status !== 'COMPENSATED')
     .reduce((a, w) => a + Math.max(0, w.overtimeMinutes ?? 0), 0);
 
-  const compensatedSaturdaysCount = workDays.filter(w => w.status === 'COMPENSATED').length;
-  const compensatedMinutes = compensatedSaturdaysCount * 240;
-
   const missingSaturdaysCount = workDays.filter(w => w.status === 'ABSENT' && w.isSaturday).length;
   const missingMinutes = missingSaturdaysCount * 240;
 
-  const netOvertime = Math.max(0, grossOvertime - compensatedMinutes - missingMinutes);
+  // As folgas compensadas já estão quitadas na escala. Apenas faltas reais são deduzidas:
+  const netOvertime = Math.max(0, grossOvertime - missingMinutes);
   const totalWorked = workDays.reduce((a, w) => a + (w.workedMinutes ?? 0), 0);
   const overtimeDays = workDays.filter(w => (w.overtimeMinutes ?? 0) > 0).length;
 

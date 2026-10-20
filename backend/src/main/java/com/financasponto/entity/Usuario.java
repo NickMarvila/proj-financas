@@ -83,6 +83,63 @@ public class Usuario {
         return role == Role.ADMIN;
     }
 
+    public int getContractMinutesForDate(java.time.LocalDate date) {
+        if (date == null) return 480;
+        java.time.DayOfWeek dow = date.getDayOfWeek();
+        String schedule = switch (dow) {
+            case MONDAY -> workMonday;
+            case TUESDAY -> workTuesday;
+            case WEDNESDAY -> workWednesday;
+            case THURSDAY -> workThursday;
+            case FRIDAY -> workFriday;
+            case SATURDAY -> workSaturday;
+            case SUNDAY -> workSunday;
+        };
+        return parseMinutesFromSchedule(schedule, dow);
+    }
+
+    public static int parseMinutesFromSchedule(String schedule, java.time.DayOfWeek dow) {
+        if (schedule == null || schedule.trim().isEmpty()) {
+            return getDefaultMinutesForDay(dow);
+        }
+        String lower = schedule.toLowerCase().trim();
+        if (lower.contains("não") || lower.contains("nao") || lower.contains("folga") || lower.contains("descan")) {
+            return 0;
+        }
+
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b");
+        java.util.regex.Matcher m = p.matcher(schedule);
+        java.util.List<Integer> times = new java.util.ArrayList<>();
+        while (m.find()) {
+            int hh = Integer.parseInt(m.group(1));
+            int mm = Integer.parseInt(m.group(2));
+            times.add(hh * 60 + mm);
+        }
+
+        if (times.size() < 2) {
+            return getDefaultMinutesForDay(dow);
+        }
+
+        int total = 0;
+        for (int i = 0; i + 1 < times.size(); i += 2) {
+            int diff = times.get(i + 1) - times.get(i);
+            if (diff > 0) {
+                total += diff;
+            }
+        }
+
+        return total > 0 ? total : getDefaultMinutesForDay(dow);
+    }
+
+    private static int getDefaultMinutesForDay(java.time.DayOfWeek dow) {
+        return switch (dow) {
+            case MONDAY, TUESDAY, WEDNESDAY, THURSDAY -> 510; // 8h30
+            case FRIDAY -> 480; // 8h00
+            case SATURDAY -> 240; // 4h00
+            case SUNDAY -> 0; // Folga
+        };
+    }
+
     public enum Role {
         ADMIN, USER
     }

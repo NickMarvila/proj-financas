@@ -12,6 +12,8 @@ public interface WorkDayRepository extends JpaRepository<WorkDay, Long> {
 
     Optional<WorkDay> findByUserIdAndDate(Long userId, LocalDate date);
 
+    List<WorkDay> findByUserId(Long userId);
+
     List<WorkDay> findByUserIdAndDateBetweenOrderByDateDesc(Long userId, LocalDate start, LocalDate end);
 
     @Query("SELECT w FROM WorkDay w WHERE w.user.id = :userId AND YEAR(w.date) = :year AND MONTH(w.date) = :month ORDER BY w.date ASC")

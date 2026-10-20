@@ -353,33 +353,23 @@ export default function Dashboard() {
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{formatCurrency(s?.baseSalary ?? 0)}</span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
               <div>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Horas Extras Brutas</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Segunda a Quinta (+30m/dia) + batidas extras</div>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent-green)' }}>
-                +{formatMinutes(s?.grossOvertimeMinutes ?? (totalOvertime + (s?.compensatedMinutes ?? 480)))}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', background: 'rgba(251, 191, 36, 0.04)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6 }}>
-              <div>
-                <div style={{ fontSize: 14, color: '#fbbf24' }}>Compensação Sábados de Folga</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>2 sábados de folga compensados na semana</div>
-              </div>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>
-                −{formatMinutes(s?.compensatedMinutes ?? 480)}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Horas Extras Líquidas a Pagar</div>
-                <div style={{ fontSize: 11, color: 'var(--accent-green)' }}>+{formatMinutes(totalOvertime)}</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Horas Extras do Mês</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Horas além da escala contratual diária</div>
               </div>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-green)' }}>
-                +{formatCurrency(s?.overtimePay ?? 0)}
+                +{formatMinutes(totalOvertime)} ({formatCurrency(s?.overtimePay ?? 0)})
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', background: 'rgba(16, 185, 129, 0.04)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6, flexWrap: 'wrap', gap: 6 }}>
+              <div>
+                <div style={{ fontSize: 14, color: 'var(--accent-green)' }}>Compensação Sábados de Folga</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>2 sábados de folga compensados na jornada de Seg–Qui</div>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-green)' }}>
+                Quitado (Escala)
               </span>
             </div>
 

@@ -129,16 +129,17 @@ public class FinanceService {
             // Sábados decorridos que o colaborador NÃO trabalhou:
             int elapsedUnworkedSaturdays = Math.max(0, elapsedSaturdays - (int) workedSaturdays);
 
-            // Os primeiros 2 sábados não trabalhados do mês são as folgas compensadas pela jornada de seg-qui!
+            // As primeiras 2 folgas de sábado do mês são compensadas pela jornada de 8h30 de seg-qui!
             int compensatedSaturdays = Math.min(2, elapsedUnworkedSaturdays);
             compensatedMinutes = compensatedSaturdays * 240;
 
             // Faltas: apenas sábados já decorridos além das 2 folgas compensadas
             missingSaturdays = Math.max(0, elapsedUnworkedSaturdays - 2);
 
-            // Minutos deduzidos do saldo de horas extras (folgas compensadas + faltas decorridas)
+            // Somente faltas de sábados obrigatórios são debitadas das horas extras!
+            // As 2 folgas de sábado já foram pagas pelas 8h30 trabalhadas de seg a qui.
             unworkedSaturdays = elapsedUnworkedSaturdays;
-            overtimeMinutes -= (unworkedSaturdays * 240);
+            overtimeMinutes = Math.max(0, overtimeMinutes - (missingSaturdays * 240));
         }
 
         Cycle currentCycle = CycleUtils.getCurrentCycle(LocalDate.now(), cutDay);

@@ -178,15 +178,22 @@ public class TimeRecordService {
             }
         }
 
-        int contractMinutes = (isSaturday ? saturdayContractHours : dailyContractHours) * 60;
-        // Hora extra só existe depois de cumprida a jornada normal do dia
+        int contractMinutes = user.getContractMinutesForDate(date);
+        // Hora extra só existe depois de cumprida a jornada normal acordada para este dia da semana
         int overtimeMinutes = Math.max(0, workedMinutes - contractMinutes);
 
         BigDecimal overtimeValue = calculateOvertimeValue(user.getId(), overtimeMinutes);
 
-        WorkDay.DayStatus status = overtimeMinutes > 0 ? WorkDay.DayStatus.OVERTIME
-                : workedMinutes >= contractMinutes ? WorkDay.DayStatus.NORMAL
-                : WorkDay.DayStatus.INCOMPLETE;
+        WorkDay.DayStatus status;
+        if (contractMinutes == 0) {
+            status = workedMinutes > 0 ? WorkDay.DayStatus.OVERTIME : WorkDay.DayStatus.DAY_OFF;
+        } else if (overtimeMinutes > 0) {
+            status = WorkDay.DayStatus.OVERTIME;
+        } else if (workedMinutes >= contractMinutes) {
+            status = WorkDay.DayStatus.NORMAL;
+        } else {
+            status = WorkDay.DayStatus.INCOMPLETE;
+        }
 
         WorkDay workDay = workDayRepository.findByUserIdAndDate(user.getId(), date)
                 .orElse(WorkDay.builder().user(user).date(date).overtimeNotified(false).build());
@@ -199,6 +206,22 @@ public class TimeRecordService {
         workDay.setStatus(status);
 
         workDayRepository.save(workDay);
+    }
+
+    @Transactional
+    public void recalculateAllForUser(Usuario user) {
+        List<WorkDay> allDays = workDayRepository.findByUserId(user.getId());
+        Set<String> cycleMonths = new HashSet<>();
+        for (WorkDay wd : allDays) {
+            recalculateWorkDay(user, wd.getDate());
+            cycleMonths.add(wd.getDate().getYear() + "-" + wd.getDate().getMonthValue());
+        }
+        for (String ym : cycleMonths) {
+            String[] parts = ym.split("-");
+            int y = Integer.parseInt(parts[0]);
+            int m = Integer.parseInt(parts[1]);
+            financeService.recalculateMonthlySummary(user, m, y);
+        }
     }
 
     public BigDecimal calculateOvertimeValue(Long userId, int overtimeMinutes) {

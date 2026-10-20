@@ -108,8 +108,8 @@ export default function MonthCalendar({
             subText = 'DSR';
           } else if (workDay?.status === 'COMPENSATED') {
             tone = 'green';
-            subText = 'Comp.';
-            badgeText = 'Folga';
+            subText = '-4h';
+            badgeText = 'Comp.';
             badgeColor = '#34d399';
           } else if (workDay?.status === 'INCOMPLETE') {
             tone = 'red';
@@ -179,7 +179,7 @@ export default function MonthCalendar({
       <div className="cal-legend">
         <div className="cal-legend-item">
           <span className="cal-legend-dot" style={{ background: '#10b981' }} />
-          <span>Trabalhado / Folga Compensada</span>
+          <span>Trabalhado / −4h Compensado</span>
         </div>
         <div className="cal-legend-item">
           <span className="cal-legend-dot" style={{ background: '#ef4444' }} />
