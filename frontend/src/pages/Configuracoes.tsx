@@ -104,6 +104,29 @@ export default function Configuracoes() {
     }
   };
 
+  const [roleLoadingId, setRoleLoadingId] = useState<number | null>(null);
+
+  const handleRoleChange = async (u: UserSummary, newRole: 'ADMIN' | 'USER') => {
+    if (u.role === newRole) return;
+    const roleName = newRole === 'ADMIN' ? 'Administrador' : 'Funcionário';
+    const confirmMsg = newRole === 'ADMIN'
+      ? `Promover @${u.username} a Administrador?\n\nEle terá acesso total às configurações do sistema, integrações e gestão de usuários.`
+      : `Transformar @${u.username} em Funcionário?\n\nEle perderá o acesso às configurações administrativas e visualizará apenas os próprios dados.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setRoleLoadingId(u.id);
+    try {
+      const res = await authApi.changeUserRole(u.id, newRole);
+      alert(res.message || `Nível de acesso alterado para ${roleName}!`);
+      await loadUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || 'Erro ao alterar nível de acesso.');
+    } finally {
+      setRoleLoadingId(null);
+    }
+  };
+
 
 
   const createWaInstance = async () => {
@@ -392,7 +415,7 @@ export default function Configuracoes() {
         <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div className="section-title" style={{ margin: 0 }}>
-              <span className="dot" />Usuários & Troca de Senha ({users.length})
+              <span className="dot" />Usuários, Acessos & Senhas ({users.length})
             </div>
             <button
               type="button"
@@ -405,7 +428,7 @@ export default function Configuracoes() {
             </button>
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
-            Como administrador, você pode redefinir a senha de qualquer usuário diretamente.
+            Como administrador, você pode alterar o nível de acesso (Admin ou Funcionário) e redefinir a senha de qualquer usuário.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 380, overflowY: 'auto', paddingRight: 4 }}>
@@ -428,9 +451,10 @@ export default function Configuracoes() {
                       border: '1px solid var(--border)',
                       borderRadius: 'var(--radius-md, 8px)',
                       gap: 10,
+                      flexWrap: 'wrap',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: '1 1 180px' }}>
                       <div
                         style={{
                           width: 34,
@@ -466,22 +490,49 @@ export default function Configuracoes() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleOpenPwdModal(u)}
-                      style={{
-                        padding: '6px 10px',
-                        fontSize: 12,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Key size={13} />
-                      <span>Trocar Senha</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <select
+                        className="form-input"
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: 12,
+                          height: 32,
+                          minWidth: 110,
+                          borderRadius: 6,
+                          background: isAdminUser ? 'rgba(139, 92, 246, 0.15)' : 'rgba(16, 185, 129, 0.12)',
+                          borderColor: isAdminUser ? 'rgba(167, 139, 250, 0.5)' : 'rgba(52, 211, 153, 0.5)',
+                          color: isAdminUser ? '#c4b5fd' : '#6ee7b7',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                        value={u.role || 'USER'}
+                        onChange={(e) => handleRoleChange(u, e.target.value as 'ADMIN' | 'USER')}
+                        disabled={roleLoadingId === u.id}
+                        title="Alterar nível de acesso deste usuário"
+                      >
+                        <option value="USER" style={{ background: '#111827', color: '#fff' }}>Funcionário</option>
+                        <option value="ADMIN" style={{ background: '#111827', color: '#fff' }}>Admin</option>
+                      </select>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleOpenPwdModal(u)}
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: 12,
+                          height: 32,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexShrink: 0,
+                        }}
+                        title="Redefinir senha"
+                      >
+                        <Key size={13} />
+                        <span>Senha</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })

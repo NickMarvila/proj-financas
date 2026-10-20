@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type {
   Dashboard, TimeRecord, WorkDay, SalaryConfig,
-  Expense, MonthlySummary, GmailStatus, Holiday
+  Expense, MonthlySummary, GmailStatus, Holiday, UserSummary
 } from '../types';
 
 const api = axios.create({ baseURL: '/api' });
@@ -29,9 +29,11 @@ api.interceptors.response.use(
 export const authApi = {
   login: (data: any) => api.post('/auth/login', data).then(r => r.data),
   register: (data: any) => api.post('/auth/register', data).then(r => r.data),
-  getUsers: () => api.get<any[]>('/auth/users').then(r => r.data),
+  getUsers: () => api.get<UserSummary[]>('/auth/users').then(r => r.data),
   changeUserPassword: (userId: number, newPassword: string) =>
     api.put<{ message: string; username?: string }>(`/auth/users/${userId}/password`, { newPassword }).then(r => r.data),
+  changeUserRole: (userId: number, role: 'ADMIN' | 'USER') =>
+    api.put<{ message: string; username?: string; role?: string }>(`/auth/users/${userId}/role`, { role }).then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data),
 };
 export const dashboardApi = {

@@ -151,4 +151,51 @@ public class AuthController {
                 "username", target.getUsername()
         ));
     }
+
+    /**
+     * Permite que administradores alterem o nível de acesso (Role) de qualquer usuário.
+     */
+    @PutMapping("/users/{id}/role")
+    public ResponseEntity<?> changeUserRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Usuario currentUserEntity = currentUser.get();
+        if (currentUserEntity.getRole() != Usuario.Role.ADMIN) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Apenas administradores podem alterar o nível de acesso dos usuários."));
+        }
+        String roleStr = body.get("role");
+        if (roleStr == null || roleStr.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "O nível de acesso (role) é obrigatório."));
+        }
+        Usuario.Role newRole;
+        try {
+            newRole = Usuario.Role.valueOf(roleStr.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Nível de acesso inválido. Use ADMIN ou USER."));
+        }
+
+        Usuario target = usuarioRepository.findById(id).orElse(null);
+        if (target == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Usuário não encontrado."));
+        }
+
+        if (target.getRole() == Usuario.Role.ADMIN && newRole == Usuario.Role.USER) {
+            if (currentUserEntity.getId().equals(target.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Você não pode remover seu próprio acesso de administrador."));
+            }
+            long adminCount = usuarioRepository.findAll().stream().filter(Usuario::isAdmin).count();
+            if (adminCount <= 1) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Não é possível remover o único administrador do sistema."));
+            }
+        }
+
+        target.setRole(newRole);
+        usuarioRepository.save(target);
+
+        String roleLabel = newRole == Usuario.Role.ADMIN ? "Administrador" : "Funcionário";
+        return ResponseEntity.ok(Map.of(
+                "message", "Nível de acesso do usuário '" + target.getUsername() + "' alterado para " + roleLabel + " com sucesso!",
+                "username", target.getUsername(),
+                "role", newRole.name()
+        ));
+    }
 }
