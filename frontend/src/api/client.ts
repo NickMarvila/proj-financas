@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type {
   Dashboard, TimeRecord, WorkDay, SalaryConfig,
-  Expense, MonthlySummary, GmailStatus
+  Expense, MonthlySummary, GmailStatus, Holiday
 } from '../types';
 
 const api = axios.create({ baseURL: '/api' });
@@ -97,3 +97,14 @@ export const profileApi = {
   update: (data: any) => api.put<{ message: string }>('/profile', data).then(r => r.data),
   updatePassword: (data: any) => api.put<{ message: string }>('/profile/password', data).then(r => r.data),
 };
+
+export const holidayApi = {
+  getAll: (year?: number) => api.get<Holiday[]>('/holidays', { params: { year } }).then(r => r.data),
+  create: (data: { date: string; name: string; isNational?: boolean }) =>
+    api.post<Holiday>('/holidays', data).then(r => r.data),
+  populateNational: (year: number) =>
+    api.post<Holiday[]>(`/holidays/populate-national/${year}`).then(r => r.data),
+  delete: (id: number) => api.delete(`/holidays/${id}`).then(r => r.data),
+  deleteByDate: (date: string) => api.delete(`/holidays/by-date/${date}`).then(r => r.data),
+};
+

@@ -23,6 +23,7 @@ public class TimeRecordService {
     private final SalaryConfigRepository salaryConfigRepository;
     private final WhatsAppService whatsAppService;
     private final FinanceService financeService;
+    private final com.financasponto.repository.HolidayRepository holidayRepository;
 
     @Value("${app.work.daily-contract-hours:8}")
     private int dailyContractHours;
@@ -129,8 +130,13 @@ public class TimeRecordService {
                 .findByUserIdAndTimestampBetweenOrderByTimestampAsc(user.getId(), startOfDay, endOfDay);
 
         if (records.isEmpty()) {
-            workDayRepository.findByUserIdAndDate(user.getId(), date)
-                    .ifPresent(workDayRepository::delete);
+            boolean isHoliday = holidayRepository.existsByUserIdAndDate(user.getId(), date);
+            if (!isHoliday) {
+                workDayRepository.findByUserIdAndDate(user.getId(), date)
+                        .ifPresent(workDayRepository::delete);
+            } else {
+                recalculateWorkDay(user, date);
+            }
             financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
             return;
         }
@@ -162,7 +168,25 @@ public class TimeRecordService {
         List<TimeRecord> records = timeRecordRepository
                 .findByUserIdAndTimestampBetweenOrderByTimestampAsc(user.getId(), startOfDay, endOfDay);
 
-        if (records.isEmpty()) return;
+        com.financasponto.entity.Holiday holiday = holidayRepository.findByUserIdAndDate(user.getId(), date).orElse(null);
+        boolean isHoliday = holiday != null;
+        String holidayName = isHoliday ? holiday.getName() : null;
+
+        if (records.isEmpty()) {
+            if (isHoliday) {
+                WorkDay workDay = workDayRepository.findByUserIdAndDate(user.getId(), date)
+                        .orElse(WorkDay.builder().user(user).date(date).overtimeNotified(false).build());
+                workDay.setWorkedMinutes(0);
+                workDay.setContractMinutes(0);
+                workDay.setOvertimeMinutes(0);
+                workDay.setOvertimeValue(BigDecimal.ZERO);
+                workDay.setIsSaturday(date.getDayOfWeek() == DayOfWeek.SATURDAY);
+                workDay.setStatus(WorkDay.DayStatus.HOLIDAY);
+                workDay.setHolidayName(holidayName);
+                workDayRepository.save(workDay);
+            }
+            return;
+        }
 
         // Calcular minutos trabalhados (pares IN/OUT)
         int workedMinutes = 0;
@@ -178,14 +202,16 @@ public class TimeRecordService {
             }
         }
 
-        int contractMinutes = user.getContractMinutesForDate(date);
+        int contractMinutes = isHoliday ? 0 : user.getContractMinutesForDate(date);
         // Hora extra só existe depois de cumprida a jornada normal acordada para este dia da semana
         int overtimeMinutes = Math.max(0, workedMinutes - contractMinutes);
 
         BigDecimal overtimeValue = calculateOvertimeValue(user.getId(), overtimeMinutes);
 
         WorkDay.DayStatus status;
-        if (contractMinutes == 0) {
+        if (isHoliday) {
+            status = workedMinutes > 0 ? WorkDay.DayStatus.OVERTIME : WorkDay.DayStatus.HOLIDAY;
+        } else if (contractMinutes == 0) {
             status = workedMinutes > 0 ? WorkDay.DayStatus.OVERTIME : WorkDay.DayStatus.DAY_OFF;
         } else if (overtimeMinutes > 0) {
             status = WorkDay.DayStatus.OVERTIME;
@@ -204,6 +230,7 @@ public class TimeRecordService {
         workDay.setOvertimeValue(overtimeValue);
         workDay.setIsSaturday(isSaturday);
         workDay.setStatus(status);
+        workDay.setHolidayName(holidayName);
 
         workDayRepository.save(workDay);
     }

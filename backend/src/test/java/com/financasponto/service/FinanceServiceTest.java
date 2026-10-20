@@ -44,7 +44,8 @@ class FinanceServiceTest {
         monthlySummaryRepository = mock(MonthlySummaryRepository.class);
         workDayRepository = mock(WorkDayRepository.class);
         service = new FinanceService(salaryConfigRepository, expenseRepository,
-                monthlySummaryRepository, workDayRepository);
+                monthlySummaryRepository, workDayRepository,
+                mock(com.financasponto.repository.HolidayRepository.class));
 
         user = new Usuario();
         user.setId(1L);

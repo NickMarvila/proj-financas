@@ -884,11 +884,15 @@ tbody td { padding: 10px 8px; color: var(--text-primary); }
 .cal-cell.green { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.38); }
 .cal-cell.red { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.45); }
 .cal-cell.red.soft { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); }
+.cal-cell.holiday { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.4); }
 .cal-cell.green .cal-day { color: #34d399; }
 .cal-cell.red .cal-day { color: #f87171; }
+.cal-cell.holiday .cal-day { color: #a78bfa; }
 .cal-cell.selected { border-color: #3b82f6; background: rgba(59,130,246,0.2); box-shadow: 0 0 10px rgba(59,130,246,0.3); }
 .cal-cell.selected.green { border-color: #10b981; background: rgba(16,185,129,0.22); box-shadow: 0 0 10px rgba(16,185,129,0.3); }
 .cal-cell.selected.red { border-color: #ef4444; background: rgba(239,68,68,0.22); box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+.cal-cell.selected.holiday { border-color: #8b5cf6; background: rgba(139,92,246,0.25); box-shadow: 0 0 10px rgba(139,92,246,0.35); }
+.badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
 
 .cal-top { display: flex; justify-content: flex-start; align-items: center; width: 100%; min-width: 0; }
 .cal-day { font-size: 11px; font-weight: 700; color: var(--text-primary); line-height: 1; }
@@ -907,6 +911,7 @@ tbody td { padding: 10px 8px; color: var(--text-primary); }
 .cal-sub { font-size: 8px; margin-top: 1px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; max-width: 100%; }
 .cal-cell.green .cal-sub { color: #a7f3d0; }
 .cal-cell.red .cal-sub { color: #fca5a5; }
+.cal-cell.holiday .cal-sub { color: #c4b5fd; }
 .cal-badge {
   font-size: 7.5px; font-weight: 700; text-align: center;
   margin-top: 1px; padding: 1px 2px; border-radius: 2px;
@@ -916,6 +921,7 @@ tbody td { padding: 10px 8px; color: var(--text-primary); }
 }
 .cal-cell.green .cal-badge { background: rgba(16,185,129,0.15); }
 .cal-cell.red .cal-badge { background: rgba(239,68,68,0.15); }
+.cal-cell.holiday .cal-badge { background: rgba(139,92,246,0.2); }
 
 .cal-legend {
   display: flex; flex-wrap: wrap; gap: 8px 14px;

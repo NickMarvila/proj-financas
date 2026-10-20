@@ -49,10 +49,13 @@ public class WorkDay {
     @Column(name = "overtime_notified")
     private Boolean overtimeNotified;
 
+    @Column(name = "holiday_name")
+    private String holidayName;
+
     @Enumerated(EnumType.STRING)
     private DayStatus status;
 
     public enum DayStatus {
-        NORMAL, OVERTIME, INCOMPLETE, DAY_OFF
+        NORMAL, OVERTIME, INCOMPLETE, DAY_OFF, HOLIDAY
     }
 }

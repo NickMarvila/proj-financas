@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Clock, Wallet, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { dashboardApi, gmailApi, workDayApi, timeRecordApi } from '../api/client';
-import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord } from '../types';
+import { dashboardApi, gmailApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
+import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord, Holiday } from '../types';
 import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [history, setHistory] = useState<WorkDay[]>([]);
   const [monthRecords, setMonthRecords] = useState<TimeRecord[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
 
   const todayIso = new Date().toISOString().split('T')[0];
@@ -31,14 +32,16 @@ export default function Dashboard() {
   const load = async () => {
     try {
       setLoading(true);
-      const [d, g, recs] = await Promise.all([
+      const [d, g, recs, hols] = await Promise.all([
         dashboardApi.get(currentMonth.year, currentMonth.month),
         gmailApi.getStatus().catch(() => null),
         timeRecordApi.getByMonth(currentMonth.year, currentMonth.month),
+        holidayApi.getAll(currentMonth.year).catch(() => [] as Holiday[]),
       ]);
       setData(d);
       setGmailStatus(g);
       setMonthRecords(recs);
+      setHolidays(hols);
       
       const year = d.monthSummary?.year ?? currentMonth.year;
       const month = d.monthSummary?.month ?? currentMonth.month;
@@ -52,12 +55,13 @@ export default function Dashboard() {
 
       const fullHistory = [...h];
       const historyDates = new Set(h.map((w: any) => w.date));
+      const holidayDates = new Set(hols.map(hol => hol.date));
 
       const unworkedSaturdays: Date[] = [];
       for (let d = new Date(calMonthStart); d <= calMonthEnd; d.setDate(d.getDate() + 1)) {
         if (d.getDay() === 6 && d <= today) {
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          if (!historyDates.has(dateStr)) {
+          if (!historyDates.has(dateStr) && !holidayDates.has(dateStr)) {
             unworkedSaturdays.push(new Date(d));
           }
         }
@@ -326,6 +330,7 @@ export default function Dashboard() {
             year={currentMonth.year}
             month={currentMonth.month}
             workDays={history}
+            holidays={holidays}
             selectedDate={selectedDate}
             onSelectDate={handleSelectCalendarDate}
           />
@@ -333,12 +338,29 @@ export default function Dashboard() {
 
         {/* Painel Direito: Batidas do Dia Selecionado com Edição, Exclusão e Nova Batida */}
         <div className="card">
-          <DayPunchesPanel
-            selectedDate={selectedDate}
-            workDay={selectedDay}
-            records={monthRecords}
-            onRefresh={load}
-          />
+          {(() => {
+            const curHol = holidays.find(h => h.date === selectedDate);
+            const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
+            const holName = selectedDay?.holidayName || curHol?.name;
+            return (
+              <DayPunchesPanel
+                selectedDate={selectedDate}
+                workDay={selectedDay}
+                records={monthRecords}
+                isHoliday={isHol}
+                holidayName={holName}
+                onToggleHoliday={async (date, isHoliday, name) => {
+                  if (isHoliday) {
+                    await holidayApi.create({ date, name: name || 'Feriado' });
+                  } else {
+                    await holidayApi.deleteByDate(date);
+                  }
+                  await load();
+                }}
+                onRefresh={load}
+              />
+            );
+          })()}
         </div>
       </div>
 

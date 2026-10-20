@@ -1,11 +1,12 @@
 import React from 'react';
-import type { WorkDay } from '../types';
+import type { WorkDay, Holiday } from '../types';
 import { formatMinutes } from '../utils/format';
 
 export interface MonthCalendarProps {
   year: number;
   month: number;
   workDays: WorkDay[];
+  holidays?: Holiday[];
   selectedDate: string | null;
   onSelectDate: (dateStr: string, workDay: WorkDay | null) => void;
 }
@@ -14,6 +15,7 @@ export default function MonthCalendar({
   year,
   month,
   workDays,
+  holidays = [],
   selectedDate,
   onSelectDate,
 }: MonthCalendarProps) {
@@ -25,6 +27,9 @@ export default function MonthCalendar({
 
   const workDaysByDate = new Map<string, WorkDay>();
   workDays.forEach(w => workDaysByDate.set(w.date, w));
+
+  const holidaysByDate = new Map<string, Holiday>();
+  holidays.forEach(h => holidaysByDate.set(h.date, h));
 
   const calendarSlots: Array<{
     day: number;
@@ -100,9 +105,25 @@ export default function MonthCalendar({
           let badgeText = '';
           let badgeColor: string | undefined;
 
+          const holiday = holidaysByDate.get(dateStr);
+          const isHoliday = workDay?.status === 'HOLIDAY' || !!holiday;
+          const holidayName = workDay?.holidayName || holiday?.name || 'Feriado';
+
           if (isFuture) {
             tone = 'future';
             subText = '';
+          } else if (isHoliday) {
+            if (workDay && (workDay.workedMinutes ?? 0) > 0) {
+              tone = 'green';
+              subText = toShortHours(workDay.workedMinutes);
+              badgeText = workDay.overtimeMinutes > 0 ? `+${toShortHours(workDay.overtimeMinutes)}` : 'OK';
+              badgeColor = workDay.overtimeMinutes > 0 ? 'var(--accent-amber)' : '#34d399';
+            } else {
+              tone = 'holiday';
+              subText = holidayName.length > 9 ? holidayName.substring(0, 9) + '…' : holidayName;
+              badgeText = 'Feriado';
+              badgeColor = '#a78bfa';
+            }
           } else if (isSunday) {
             tone = 'sunday';
             subText = 'DSR';
@@ -180,6 +201,10 @@ export default function MonthCalendar({
         <div className="cal-legend-item">
           <span className="cal-legend-dot" style={{ background: '#10b981' }} />
           <span>Trabalhado / −4h Compensado</span>
+        </div>
+        <div className="cal-legend-item">
+          <span className="cal-legend-dot" style={{ background: '#8b5cf6' }} />
+          <span>Feriado</span>
         </div>
         <div className="cal-legend-item">
           <span className="cal-legend-dot" style={{ background: '#ef4444' }} />

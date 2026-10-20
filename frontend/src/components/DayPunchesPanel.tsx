@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Clock, Edit2, Trash2, Plus, Check, X } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Clock, Edit2, Trash2, Plus, Check, X, Sparkles } from 'lucide-react';
 import type { WorkDay, TimeRecord } from '../types';
 import { formatMinutes, formatCurrency, formatDate, formatTime } from '../utils/format';
-import { timeRecordApi } from '../api/client';
+import { timeRecordApi, holidayApi } from '../api/client';
 
 export interface DayPunchesPanelProps {
   selectedDate: string; // YYYY-MM-DD
   workDay: WorkDay | null;
   records: TimeRecord[];
+  isHoliday?: boolean;
+  holidayName?: string;
+  onToggleHoliday?: (date: string, isHoliday: boolean, name?: string) => Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
 
@@ -15,6 +18,9 @@ export default function DayPunchesPanel({
   selectedDate,
   workDay,
   records,
+  isHoliday = false,
+  holidayName,
+  onToggleHoliday,
   onRefresh,
 }: DayPunchesPanelProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -26,6 +32,11 @@ export default function DayPunchesPanel({
   const [newTime, setNewTime] = useState<string>('');
   const [addingNew, setAddingNew] = useState<boolean>(false);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
+
+  // Formulário para marcar feriado
+  const [showHolidayForm, setShowHolidayForm] = useState<boolean>(false);
+  const [holidayInputName, setHolidayInputName] = useState<string>('Feriado');
+  const [savingHoliday, setSavingHoliday] = useState<boolean>(false);
 
   const dayRecords = records
     .filter(r => r.timestamp.startsWith(selectedDate))
@@ -93,8 +104,44 @@ export default function DayPunchesPanel({
     }
   };
 
+  const handleSaveHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holidayInputName.trim()) return alert('Digite o nome do feriado!');
+    setSavingHoliday(true);
+    try {
+      if (onToggleHoliday) {
+        await onToggleHoliday(selectedDate, true, holidayInputName.trim());
+      } else {
+        await holidayApi.create({ date: selectedDate, name: holidayInputName.trim() });
+        await onRefresh();
+      }
+      setShowHolidayForm(false);
+    } catch (e: any) {
+      alert(`Erro ao marcar feriado: ${e.response?.data?.error || e.message}`);
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
+  const handleRemoveHoliday = async () => {
+    if (!window.confirm(`Deseja desmarcar o feriado desta data (${selectedDate})?`)) return;
+    setSavingHoliday(true);
+    try {
+      if (onToggleHoliday) {
+        await onToggleHoliday(selectedDate, false);
+      } else {
+        await holidayApi.deleteByDate(selectedDate);
+        await onRefresh();
+      }
+    } catch (e: any) {
+      alert(`Erro ao remover feriado: ${e.response?.data?.error || e.message}`);
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
   const isCompensated = workDay?.status === 'COMPENSATED';
-  const isAbsent = workDay?.status === 'ABSENT';
+  const isAbsent = !isHoliday && workDay?.status === 'ABSENT';
   const isIncomplete = workDay?.status === 'INCOMPLETE';
 
   return (
@@ -104,14 +151,98 @@ export default function DayPunchesPanel({
           <span className="dot" />
           Batidas — {formatDate(selectedDate + 'T00:00:00')}
         </div>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => setShowAddForm(!showAddForm)}
-        >
-          <Plus size={14} />
-          {showAddForm ? 'Fechar' : 'Nova Batida'}
-        </button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {!isHoliday && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowHolidayForm(!showHolidayForm)}
+              style={{ fontSize: 12, padding: '4px 9px' }}
+              title="Marcar este dia como feriado"
+            >
+              <Sparkles size={13} style={{ color: '#a78bfa', marginRight: 4 }} />
+              {showHolidayForm ? 'Cancelar' : 'Feriado'}
+            </button>
+          )}
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowAddForm(!showAddForm)}
+            style={{ fontSize: 12, padding: '4px 9px' }}
+          >
+            <Plus size={13} />
+            {showAddForm ? 'Fechar' : 'Nova Batida'}
+          </button>
+        </div>
       </div>
+
+      {/* Formulário para marcar feriado */}
+      {showHolidayForm && (
+        <form onSubmit={handleSaveHoliday} style={{
+          background: 'rgba(139, 92, 246, 0.08)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '12px 14px',
+          marginBottom: 16,
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: 12, color: '#c4b5fd' }}>Nome do feriado:</span>
+          <input
+            type="text"
+            className="form-input input-compact"
+            placeholder="Ex: Nossa Senhora Aparecida"
+            value={holidayInputName}
+            onChange={e => setHolidayInputName(e.target.value)}
+            style={{ flex: 1, minWidth: 160 }}
+            required
+          />
+          <button
+            type="submit"
+            className="btn btn-primary btn-sm"
+            disabled={savingHoliday || !holidayInputName.trim()}
+            style={{ background: '#8b5cf6', borderColor: '#7c3aed' }}
+          >
+            {savingHoliday ? 'Salvando...' : 'Marcar Feriado'}
+          </button>
+        </form>
+      )}
+
+      {/* Banner de Feriado */}
+      {isHoliday && (
+        <div style={{
+          background: 'rgba(139, 92, 246, 0.08)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px 16px',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <span style={{ fontSize: 22, flexShrink: 0 }}>🎉</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 13 }}>
+                Feriado — {holidayName || 'Dia de Folga Remunerada'}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                Folga oficial remunerada. Não gera falta e não deduz horas extras.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 11, color: '#f87171', borderColor: 'rgba(239,68,68,0.3)' }}
+            disabled={savingHoliday}
+            onClick={handleRemoveHoliday}
+          >
+            {savingHoliday ? 'Removendo...' : 'Desmarcar Feriado'}
+          </button>
+        </div>
+      )}
 
       {/* Formulário de adicionar nova batida neste dia */}
       {showAddForm && (
@@ -185,15 +316,30 @@ export default function DayPunchesPanel({
       {/* Sem batidas registradas nesta data */}
       {dayRecords.length === 0 ? (
         <div style={{
-          background: isAbsent ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-          border: `1px solid ${isAbsent ? 'rgba(239, 68, 68, 0.25)' : 'var(--border)'}`,
+          background: isHoliday ? 'rgba(139, 92, 246, 0.06)' : isAbsent ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+          border: `1px solid ${isHoliday ? 'rgba(139, 92, 246, 0.25)' : isAbsent ? 'rgba(239, 68, 68, 0.25)' : 'var(--border)'}`,
           borderRadius: 'var(--radius-md)',
           padding: '20px',
           textAlign: 'center',
           color: 'var(--text-secondary)',
           fontSize: 13,
         }}>
-          {isAbsent ? (
+          {isHoliday ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#a78bfa' }}>
+              <span style={{ fontSize: 24 }}>🎉</span>
+              <strong>Feriado Oficial ({holidayName || 'Folga Remunerada'})</strong>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                Nenhuma batida exigida para este dia. Aproveite o feriado!
+              </span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddForm(true)}
+                style={{ marginTop: 8, fontSize: 12 }}
+              >
+                + Trabalhou no Feriado? Adicionar Ponto
+              </button>
+            </div>
+          ) : isAbsent ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--accent-red)' }}>
               <XCircle size={22} />
               <strong>Falta Registrada (−4h)</strong>

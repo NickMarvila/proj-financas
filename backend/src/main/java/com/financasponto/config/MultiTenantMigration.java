@@ -27,7 +27,7 @@ import java.util.List;
 public class MultiTenantMigration {
 
     private static final List<String> TENANT_TABLES =
-            List.of("time_records", "work_days", "salary_config", "expenses", "monthly_summary");
+            List.of("time_records", "work_days", "salary_config", "expenses", "monthly_summary", "holidays");
 
     private final JdbcTemplate jdbc;
 

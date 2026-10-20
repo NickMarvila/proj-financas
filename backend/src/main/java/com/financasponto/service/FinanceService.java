@@ -27,6 +27,7 @@ public class FinanceService {
     private final ExpenseRepository expenseRepository;
     private final MonthlySummaryRepository monthlySummaryRepository;
     private final WorkDayRepository workDayRepository;
+    private final com.financasponto.repository.HolidayRepository holidayRepository;
 
     public SalaryConfig getSalaryConfig(Long userId) {
         return salaryConfigRepository.findFirstByUserIdAndActiveTrueOrderByUpdatedAtDesc(userId)
@@ -114,20 +115,32 @@ public class FinanceService {
 
             // Sábados que já decorreram no mês até a data de hoje:
             int elapsedSaturdays = 0;
+            int holidaySaturdays = 0;
             if (year < today.getYear() || (year == today.getYear() && month < today.getMonthValue())) {
-                elapsedSaturdays = totalSaturdays;
+                for (LocalDate d = startOfMonth; !d.isAfter(endOfMonth); d = d.plusDays(1)) {
+                    if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
+                        elapsedSaturdays++;
+                        if (holidayRepository.existsByUserIdAndDate(userId, d)) {
+                            holidaySaturdays++;
+                        }
+                    }
+                }
             } else if (year == today.getYear() && month == today.getMonthValue()) {
                 for (LocalDate d = startOfMonth; !d.isAfter(endOfMonth) && !d.isAfter(today); d = d.plusDays(1)) {
                     if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
                         elapsedSaturdays++;
+                        if (holidayRepository.existsByUserIdAndDate(userId, d)) {
+                            holidaySaturdays++;
+                        }
                     }
                 }
             } else {
                 elapsedSaturdays = 0;
             }
 
-            // Sábados decorridos que o colaborador NÃO trabalhou:
-            int elapsedUnworkedSaturdays = Math.max(0, elapsedSaturdays - (int) workedSaturdays);
+            // Sábados decorridos que o colaborador NÃO trabalhou (feriados não são falta nem exigem trabalho):
+            int eligibleSaturdays = Math.max(0, elapsedSaturdays - holidaySaturdays);
+            int elapsedUnworkedSaturdays = Math.max(0, eligibleSaturdays - (int) workedSaturdays);
 
             // As primeiras 2 folgas de sábado do mês são compensadas pela jornada de 8h30 de seg-qui!
             int compensatedSaturdays = Math.min(2, elapsedUnworkedSaturdays);

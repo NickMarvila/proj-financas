@@ -17,7 +17,15 @@ export interface WorkDay {
   overtimeValue: number;
   isSaturday: boolean;
   overtimeNotified: boolean;
-  status: 'NORMAL' | 'OVERTIME' | 'INCOMPLETE' | 'DAY_OFF' | 'ABSENT' | 'COMPENSATED';
+  status: 'NORMAL' | 'OVERTIME' | 'INCOMPLETE' | 'DAY_OFF' | 'ABSENT' | 'COMPENSATED' | 'HOLIDAY';
+  holidayName?: string;
+}
+
+export interface Holiday {
+  id: number;
+  date: string; // YYYY-MM-DD
+  name: string;
+  isNational?: boolean;
 }
 
 export interface SalaryConfig {

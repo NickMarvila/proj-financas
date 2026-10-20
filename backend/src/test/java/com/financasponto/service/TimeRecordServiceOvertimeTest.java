@@ -40,7 +40,8 @@ class TimeRecordServiceOvertimeTest {
         timeRecordRepository = mock(TimeRecordRepository.class);
         workDayRepository = mock(WorkDayRepository.class);
         service = new TimeRecordService(timeRecordRepository, workDayRepository,
-                mock(SalaryConfigRepository.class), mock(WhatsAppService.class), mock(FinanceService.class));
+                mock(SalaryConfigRepository.class), mock(WhatsAppService.class), mock(FinanceService.class),
+                mock(com.financasponto.repository.HolidayRepository.class));
         ReflectionTestUtils.setField(service, "dailyContractHours", 8);
         ReflectionTestUtils.setField(service, "saturdayContractHours", 4);
 
