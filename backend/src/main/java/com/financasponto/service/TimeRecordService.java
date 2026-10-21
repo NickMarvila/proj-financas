@@ -84,10 +84,11 @@ public class TimeRecordService {
         TimeRecord record = timeRecordRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Registro de ponto não encontrado"));
 
-        if (!record.getUser().getId().equals(user.getId())) {
+        if (!record.getUser().getId().equals(user.getId()) && user.getRole() != Usuario.Role.ADMIN) {
             throw new org.springframework.security.access.AccessDeniedException("Não autorizado a alterar este ponto");
         }
 
+        Usuario targetUser = record.getUser();
         LocalDate oldDate = record.getTimestamp().toLocalDate();
         LocalDate newDate = newTimestamp.toLocalDate();
 
@@ -98,9 +99,9 @@ public class TimeRecordService {
         TimeRecord saved = timeRecordRepository.save(record);
 
         // Recalcular batidas e resumo dos dias afetados
-        recalculateDayPunches(user, oldDate);
+        recalculateDayPunches(targetUser, oldDate);
         if (!oldDate.equals(newDate)) {
-            recalculateDayPunches(user, newDate);
+            recalculateDayPunches(targetUser, newDate);
         }
 
         return saved;
@@ -111,15 +112,16 @@ public class TimeRecordService {
         TimeRecord record = timeRecordRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Registro de ponto não encontrado"));
 
-        if (!record.getUser().getId().equals(user.getId())) {
+        if (!record.getUser().getId().equals(user.getId()) && user.getRole() != Usuario.Role.ADMIN) {
             throw new org.springframework.security.access.AccessDeniedException("Não autorizado a excluir este ponto");
         }
 
+        Usuario targetUser = record.getUser();
         LocalDate date = record.getTimestamp().toLocalDate();
         timeRecordRepository.delete(record);
 
         // Recalcular batidas e resumo do dia afetado
-        recalculateDayPunches(user, date);
+        recalculateDayPunches(targetUser, date);
     }
 
     @Transactional
@@ -274,8 +276,12 @@ public class TimeRecordService {
 
     public List<TimeRecord> getMonthRecords(Usuario user, int year, int month) {
         int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
-        LocalDate start = com.financasponto.utils.CycleUtils.getCycleStart(year, month, cutDay);
-        LocalDate end = com.financasponto.utils.CycleUtils.getCycleEnd(year, month, cutDay);
+        LocalDate calStart = LocalDate.of(year, month, 1);
+        LocalDate calEnd = calStart.withDayOfMonth(calStart.lengthOfMonth());
+        LocalDate cycleStart = com.financasponto.utils.CycleUtils.getCycleStart(year, month, cutDay);
+        LocalDate cycleEnd = com.financasponto.utils.CycleUtils.getCycleEnd(year, month, cutDay);
+        LocalDate start = cycleStart.isBefore(calStart) ? cycleStart : calStart;
+        LocalDate end = cycleEnd.isAfter(calEnd) ? cycleEnd : calEnd;
         return timeRecordRepository.findByUserIdAndTimestampBetweenOrderByTimestampAsc(
                 user.getId(), start.atStartOfDay(), end.atTime(23, 59, 59));
     }

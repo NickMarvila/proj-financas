@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, Clock, Wallet, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
-import { dashboardApi, gmailApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
-import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord, Holiday } from '../types';
+import { authApi, dashboardApi, gmailApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
+import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord, Holiday, UserSummary } from '../types';
 import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
@@ -29,14 +29,34 @@ export default function Dashboard() {
   const [manualTime, setManualTime] = useState('');
   const [savingManual, setSavingManual] = useState(false);
 
+  // Colaborador ativo (para admin selecionar funcionário)
+  const [currentUser, setCurrentUser] = useState<UserSummary | null>(null);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    authApi.me().then(async (me) => {
+      setCurrentUser(me);
+      if (me.role === 'ADMIN') {
+        try {
+          const list = await authApi.getUsers();
+          setUsers(list);
+        } catch (e) {
+          console.error('Failed to load users', e);
+        }
+      }
+    }).catch(() => {});
+  }, []);
+
   const load = async () => {
     try {
       setLoading(true);
+      const uid = selectedUserId;
       const [d, g, recs, hols] = await Promise.all([
-        dashboardApi.get(currentMonth.year, currentMonth.month),
+        dashboardApi.get(currentMonth.year, currentMonth.month, uid),
         gmailApi.getStatus().catch(() => null),
-        timeRecordApi.getByMonth(currentMonth.year, currentMonth.month),
-        holidayApi.getAll(currentMonth.year).catch(() => [] as Holiday[]),
+        timeRecordApi.getByMonth(currentMonth.year, currentMonth.month, uid),
+        holidayApi.getAll(currentMonth.year, uid).catch(() => [] as Holiday[]),
       ]);
       setData(d);
       setGmailStatus(g);
@@ -45,7 +65,7 @@ export default function Dashboard() {
       
       const year = d.monthSummary?.year ?? currentMonth.year;
       const month = d.monthSummary?.month ?? currentMonth.month;
-      const h = await workDayApi.getByMonth(year, month);
+      const h = await workDayApi.getByMonth(year, month, uid);
       
       // Injetar sábados — Sábados seguem o MÊS CALENDÁRIO
       const calMonthStart = new Date(year, month - 1, 1);
@@ -111,7 +131,7 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { load(); }, [currentMonth]);
+  useEffect(() => { load(); }, [currentMonth, selectedUserId]);
 
   const handleSync = async () => {
     if (gmailStatus?.status !== 'CONECTADO') {
@@ -134,7 +154,7 @@ export default function Dashboard() {
     setSavingManual(true);
     try {
       const timestamp = `${manualDate}T${manualTime}:00`;
-      await timeRecordApi.addManual(timestamp);
+      await timeRecordApi.addManual(timestamp, selectedUserId ?? currentUser?.id);
       alert('Ponto registrado com sucesso!');
       await load();
       setManualTime('');
@@ -178,10 +198,52 @@ export default function Dashboard() {
             <h1 className="dash-title">Dashboard</h1>
             <span className="dash-subtitle">{getCycleDatesStr()}</span>
           </div>
-          <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
-            <RefreshCw size={13} className={syncing ? 'spin' : ''} />
-            <span>{syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {currentUser?.role === 'ADMIN' && users.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '5px 12px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+              }}>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500 }}>
+                  👤 Colaborador:
+                </span>
+                <select
+                  id="select-employee-dashboard"
+                  value={selectedUserId ?? currentUser.id ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : undefined;
+                    setSelectedUserId(val);
+                  }}
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: '4px 8px',
+                    minWidth: 170,
+                    background: 'var(--bg-card, #1e293b)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.employeeName || u.username} ({u.username}) {u.role === 'ADMIN' ? '★ Admin' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
+              <RefreshCw size={13} className={syncing ? 'spin' : ''} />
+              <span>{syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+            </button>
+          </div>
         </div>
 
         <div className="dash-month-selector">
@@ -342,6 +404,7 @@ export default function Dashboard() {
             const curHol = holidays.find(h => h.date === selectedDate);
             const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
             const holName = selectedDay?.holidayName || curHol?.name;
+            const uid = selectedUserId ?? currentUser?.id;
             return (
               <DayPunchesPanel
                 selectedDate={selectedDate}
@@ -349,11 +412,12 @@ export default function Dashboard() {
                 records={monthRecords}
                 isHoliday={isHol}
                 holidayName={holName}
+                targetUserId={uid}
                 onToggleHoliday={async (date, isHoliday, name) => {
                   if (isHoliday) {
-                    await holidayApi.create({ date, name: name || 'Feriado' });
+                    await holidayApi.create({ date, name: name || 'Feriado' }, uid);
                   } else {
-                    await holidayApi.deleteByDate(date);
+                    await holidayApi.deleteByDate(date, uid);
                   }
                   await load();
                 }}

@@ -37,20 +37,21 @@ export const authApi = {
   me: () => api.get('/auth/me').then(r => r.data),
 };
 export const dashboardApi = {
-  get: (year?: number, month?: number) => {
+  get: (year?: number, month?: number, userId?: number) => {
     const params = new URLSearchParams();
     if (year) params.append('year', year.toString());
     if (month) params.append('month', month.toString());
+    if (userId) params.append('userId', userId.toString());
     return api.get<Dashboard>(`/dashboard?${params.toString()}`).then(r => r.data);
   },
 };
 
 export const timeRecordApi = {
-  getToday: () => api.get<TimeRecord[]>('/time-records/today').then(r => r.data),
-  getByMonth: (year: number, month: number) =>
-    api.get<TimeRecord[]>(`/time-records/${year}/${month}`).then(r => r.data),
-  addManual: (timestamp: string) =>
-    api.post('/time-records/manual', { timestamp }).then(r => r.data),
+  getToday: (userId?: number) => api.get<TimeRecord[]>('/time-records/today', { params: { userId } }).then(r => r.data),
+  getByMonth: (year: number, month: number, userId?: number) =>
+    api.get<TimeRecord[]>(`/time-records/${year}/${month}`, { params: { userId } }).then(r => r.data),
+  addManual: (timestamp: string, userId?: number) =>
+    api.post('/time-records/manual', { timestamp, userId }, { params: { userId } }).then(r => r.data),
   update: (id: number, data: { timestamp: string; punchType?: 'IN' | 'OUT' }) =>
     api.put<TimeRecord>(`/time-records/${id}`, data).then(r => r.data),
   delete: (id: number) =>
@@ -58,9 +59,9 @@ export const timeRecordApi = {
 };
 
 export const workDayApi = {
-  getByMonth: (year: number, month: number) =>
-    api.get<WorkDay[]>(`/work-days/${year}/${month}`).then(r => r.data),
-  getToday: () => api.get<WorkDay>('/work-days/today').then(r => r.data).catch(() => null),
+  getByMonth: (year: number, month: number, userId?: number) =>
+    api.get<WorkDay[]>(`/work-days/${year}/${month}`, { params: { userId } }).then(r => r.data),
+  getToday: (userId?: number) => api.get<WorkDay>('/work-days/today', { params: { userId } }).then(r => r.data).catch(() => null),
 };
 
 export const financeApi = {
@@ -103,12 +104,12 @@ export const profileApi = {
 };
 
 export const holidayApi = {
-  getAll: (year?: number) => api.get<Holiday[]>('/holidays', { params: { year } }).then(r => r.data),
-  create: (data: { date: string; name: string; isNational?: boolean }) =>
-    api.post<Holiday>('/holidays', data).then(r => r.data),
-  populateNational: (year: number) =>
-    api.post<Holiday[]>(`/holidays/populate-national/${year}`).then(r => r.data),
+  getAll: (year?: number, userId?: number) => api.get<Holiday[]>('/holidays', { params: { year, userId } }).then(r => r.data),
+  create: (data: { date: string; name: string; isNational?: boolean }, userId?: number) =>
+    api.post<Holiday>('/holidays', data, { params: { userId } }).then(r => r.data),
+  populateNational: (year: number, userId?: number) =>
+    api.post<Holiday[]>(`/holidays/populate-national/${year}`, {}, { params: { userId } }).then(r => r.data),
   delete: (id: number) => api.delete(`/holidays/${id}`).then(r => r.data),
-  deleteByDate: (date: string) => api.delete(`/holidays/by-date/${date}`).then(r => r.data),
+  deleteByDate: (date: string, userId?: number) => api.delete(`/holidays/by-date/${date}`, { params: { userId } }).then(r => r.data),
 };
 

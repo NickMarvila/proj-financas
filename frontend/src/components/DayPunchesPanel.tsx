@@ -10,6 +10,7 @@ export interface DayPunchesPanelProps {
   records: TimeRecord[];
   isHoliday?: boolean;
   holidayName?: string;
+  targetUserId?: number;
   onToggleHoliday?: (date: string, isHoliday: boolean, name?: string) => Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
@@ -20,6 +21,7 @@ export default function DayPunchesPanel({
   records,
   isHoliday = false,
   holidayName,
+  targetUserId,
   onToggleHoliday,
   onRefresh,
 }: DayPunchesPanelProps) {
@@ -93,7 +95,7 @@ export default function DayPunchesPanel({
     setAddingNew(true);
     try {
       const timestamp = `${selectedDate}T${newTime}:00`;
-      await timeRecordApi.addManual(timestamp);
+      await timeRecordApi.addManual(timestamp, targetUserId);
       setNewTime('');
       setShowAddForm(false);
       await onRefresh();
@@ -112,7 +114,7 @@ export default function DayPunchesPanel({
       if (onToggleHoliday) {
         await onToggleHoliday(selectedDate, true, holidayInputName.trim());
       } else {
-        await holidayApi.create({ date: selectedDate, name: holidayInputName.trim() });
+        await holidayApi.create({ date: selectedDate, name: holidayInputName.trim() }, targetUserId);
         await onRefresh();
       }
       setShowHolidayForm(false);
@@ -130,7 +132,7 @@ export default function DayPunchesPanel({
       if (onToggleHoliday) {
         await onToggleHoliday(selectedDate, false);
       } else {
-        await holidayApi.deleteByDate(selectedDate);
+        await holidayApi.deleteByDate(selectedDate, targetUserId);
         await onRefresh();
       }
     } catch (e: any) {

@@ -31,4 +31,8 @@ public class CurrentUser {
     public Long id() {
         return get().getId();
     }
+
+    public boolean isAdmin() {
+        return get().getRole() == Usuario.Role.ADMIN;
+    }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, Sparkles, Trash2, X, Plus } from 'lucide-react';
-import { workDayApi, timeRecordApi, holidayApi } from '../api/client';
-import type { WorkDay, TimeRecord, Holiday } from '../types';
+import { authApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
+import type { WorkDay, TimeRecord, Holiday, UserSummary } from '../types';
 import { formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
@@ -37,13 +37,33 @@ export default function Ponto() {
   const [savingNewHol, setSavingNewHol] = useState(false);
   const [populatingHols, setPopulatingHols] = useState(false);
 
+  // Colaborador ativo (para admin selecionar funcionário)
+  const [currentUser, setCurrentUser] = useState<UserSummary | null>(null);
+  const [users, setUsers] = useState<UserSummary[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    authApi.me().then(async (me) => {
+      setCurrentUser(me);
+      if (me.role === 'ADMIN') {
+        try {
+          const list = await authApi.getUsers();
+          setUsers(list);
+        } catch (e) {
+          console.error('Failed to load users list', e);
+        }
+      }
+    }).catch(() => {});
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {
+      const uid = selectedUserId;
       const [wds, recs, hols] = await Promise.all([
-        workDayApi.getByMonth(year, month),
-        timeRecordApi.getByMonth(year, month),
-        holidayApi.getAll(year).catch(() => [] as Holiday[]),
+        workDayApi.getByMonth(year, month, uid),
+        timeRecordApi.getByMonth(year, month, uid),
+        holidayApi.getAll(year, uid).catch(() => [] as Holiday[]),
       ]);
       setHolidays(hols);
 
@@ -135,10 +155,11 @@ export default function Ponto() {
 
   const handleToggleHoliday = async (date: string, isHoliday: boolean, name?: string) => {
     try {
+      const uid = selectedUserId ?? currentUser?.id;
       if (isHoliday) {
-        await holidayApi.create({ date, name: name || 'Feriado' });
+        await holidayApi.create({ date, name: name || 'Feriado' }, uid);
       } else {
-        await holidayApi.deleteByDate(date);
+        await holidayApi.deleteByDate(date, uid);
       }
       await loadData();
     } catch (e: any) {
@@ -151,7 +172,8 @@ export default function Ponto() {
     if (!newHolDate || !newHolName.trim()) return alert('Preencha data e nome do feriado!');
     setSavingNewHol(true);
     try {
-      await holidayApi.create({ date: newHolDate, name: newHolName.trim() });
+      const uid = selectedUserId ?? currentUser?.id;
+      await holidayApi.create({ date: newHolDate, name: newHolName.trim() }, uid);
       setNewHolDate('');
       setNewHolName('');
       await loadData();
@@ -176,7 +198,8 @@ export default function Ponto() {
     if (!window.confirm(`Deseja importar e sincronizar os feriados nacionais de ${year}?`)) return;
     setPopulatingHols(true);
     try {
-      await holidayApi.populateNational(year);
+      const uid = selectedUserId ?? currentUser?.id;
+      await holidayApi.populateNational(year, uid);
       await loadData();
     } catch (e: any) {
       alert(`Erro ao importar: ${e.response?.data?.error || e.message}`);
@@ -187,7 +210,7 @@ export default function Ponto() {
 
   useEffect(() => {
     loadData();
-  }, [year, month]);
+  }, [year, month, selectedUserId]);
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -212,17 +235,61 @@ export default function Ponto() {
 
   return (
     <div>
-      <div className="page-header page-header-row">
+      <div className="page-header page-header-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title">Registros de Ponto</h1>
           <p className="page-subtitle">Histórico de batidas e horas trabalhadas</p>
         </div>
-        <div className="month-nav">
-          <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
-          <span className="month-nav-label">
-            {MONTH_NAMES[month - 1]} {year}
-          </span>
-          <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={nextMonth}><ChevronRight size={16} /></button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {currentUser?.role === 'ADMIN' && users.length > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 12px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+            }}>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+                👤 Colaborador:
+              </span>
+              <select
+                id="select-employee-ponto"
+                value={selectedUserId ?? currentUser.id ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : undefined;
+                  setSelectedUserId(val);
+                }}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: '5px 10px',
+                  minWidth: 180,
+                  background: 'var(--bg-card, #1e293b)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer'
+                }}
+              >
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.employeeName || u.username} ({u.username}) {u.role === 'ADMIN' ? '★ Admin' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="month-nav">
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
+            <span className="month-nav-label">
+              {MONTH_NAMES[month - 1]} {year}
+            </span>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={nextMonth}><ChevronRight size={16} /></button>
+          </div>
         </div>
       </div>
 
@@ -384,6 +451,7 @@ export default function Ponto() {
                 records={records}
                 isHoliday={isHol}
                 holidayName={holName}
+                targetUserId={selectedUserId ?? currentUser?.id}
                 onToggleHoliday={handleToggleHoliday}
                 onRefresh={loadData}
               />
