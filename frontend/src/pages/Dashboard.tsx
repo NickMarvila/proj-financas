@@ -3,6 +3,7 @@ import { TrendingUp, Clock, Wallet, AlertCircle, RefreshCw, ChevronLeft, Chevron
 import { authApi, dashboardApi, gmailApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
 import type { Dashboard as DashboardData, GmailStatus, WorkDay, TimeRecord, Holiday, UserSummary } from '../types';
 import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
+import { getCurrentCycle, getCyclePeriodStr, getCycleRange, formatDateIso } from '../utils/cycle';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
 
@@ -16,14 +17,11 @@ export default function Dashboard() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [showScheduleDetails, setShowScheduleDetails] = useState(false);
 
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = formatDateIso(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedDay, setSelectedDay] = useState<WorkDay | null>(null);
   
-  const [currentMonth, setCurrentMonth] = useState({
-    year: new Date().getFullYear(),
-    month: new Date().getMonth() + 1
-  });
+  const [currentMonth, setCurrentMonth] = useState(() => getCurrentCycle());
   
   const [manualDate, setManualDate] = useState(todayIso);
   const [manualTime, setManualTime] = useState('');
@@ -67,20 +65,21 @@ export default function Dashboard() {
       const month = d.monthSummary?.month ?? currentMonth.month;
       const h = await workDayApi.getByMonth(year, month, uid);
       
-      // Injetar sábados — Sábados seguem o MÊS CALENDÁRIO
-      const calMonthStart = new Date(year, month - 1, 1);
-      const calMonthEnd = new Date(year, month, 0); // último dia do mês
+      // Ciclo financeiro do dia 21 ao dia 20 do mês seguinte
+      const { startDate: cycleStart, endDate: cycleEnd } = getCycleRange(year, month, 21);
+      const cycleStartStr = formatDateIso(cycleStart);
+      const cycleEndStr = formatDateIso(cycleEnd);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const fullHistory = [...h];
-      const historyDates = new Set(h.map((w: any) => w.date));
+      const fullHistory = h.filter(w => w.date >= cycleStartStr && w.date <= cycleEndStr);
+      const historyDates = new Set(fullHistory.map((w: any) => w.date));
       const holidayDates = new Set(hols.map(hol => hol.date));
 
       const unworkedSaturdays: Date[] = [];
-      for (let d = new Date(calMonthStart); d <= calMonthEnd; d.setDate(d.getDate() + 1)) {
+      for (let d = new Date(cycleStart); d <= cycleEnd; d.setDate(d.getDate() + 1)) {
         if (d.getDay() === 6 && d <= today) {
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const dateStr = formatDateIso(d);
           if (!historyDates.has(dateStr) && !holidayDates.has(dateStr)) {
             unworkedSaturdays.push(new Date(d));
           }
@@ -90,7 +89,7 @@ export default function Dashboard() {
       unworkedSaturdays.sort((a, b) => a.getTime() - b.getTime());
 
       unworkedSaturdays.forEach((d, index) => {
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dateStr = formatDateIso(d);
         const isCompensated = index < 2;
         fullHistory.push({
           id: -d.getTime(),
@@ -114,14 +113,20 @@ export default function Dashboard() {
       if (curSelected) {
         setSelectedDay(curSelected);
       } else {
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const todayStr = formatDateIso(today);
         const foundToday = fullHistory.find(w => w.date === todayStr);
         if (foundToday) {
           setSelectedDate(todayStr);
           setSelectedDay(foundToday);
+        } else if (todayStr >= cycleStartStr && todayStr <= cycleEndStr) {
+          setSelectedDate(todayStr);
+          setSelectedDay(null);
         } else if (fullHistory.length > 0) {
           setSelectedDate(fullHistory[0].date);
           setSelectedDay(fullHistory[0]);
+        } else {
+          setSelectedDate(cycleStartStr);
+          setSelectedDay(null);
         }
       }
     } catch (e) {
@@ -247,14 +252,14 @@ export default function Dashboard() {
         </div>
 
         <div className="dash-month-selector">
-          <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>
+          <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>
             <ChevronLeft size={16} />
           </button>
           <div className="dash-month-label">
             <span className="month-name">{MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}</span>
-            <small>Ciclo Financeiro</small>
+            <small>Ciclo: {getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}</small>
           </div>
-          <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={() => setCurrentMonth(prev => prev.month === 12 ? { year: prev.year + 1, month: 1 } : { ...prev, month: prev.month + 1 })}>
+          <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo ciclo" onClick={() => setCurrentMonth(prev => prev.month === 12 ? { year: prev.year + 1, month: 1 } : { ...prev, month: prev.month + 1 })}>
             <ChevronRight size={16} />
           </button>
         </div>
@@ -277,7 +282,7 @@ export default function Dashboard() {
       <div className="hero-balance-card">
         <div className="hero-balance-top">
           <span className="hero-balance-tag">Saldo Projetado</span>
-          <span className="hero-month-tag">{MONTH_NAMES[currentMonth.month - 1]}</span>
+          <span className="hero-month-tag">Ciclo: {getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}</span>
         </div>
         <div className="hero-balance-amount">{formatCurrency(s?.finalBalance ?? 0)}</div>
         <div className="hero-balance-calc">
@@ -386,11 +391,12 @@ export default function Dashboard() {
         {/* Painel Esquerdo: Calendário Mensal com status verde e vermelho */}
         <div className="card">
           <div className="section-title">
-            <span className="dot" />Calendário de Ponto — {MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}
+            <span className="dot" />Calendário — Ciclo {getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}
           </div>
           <MonthCalendar
             year={currentMonth.year}
             month={currentMonth.month}
+            cutDay={21}
             workDays={history}
             holidays={holidays}
             selectedDate={selectedDate}

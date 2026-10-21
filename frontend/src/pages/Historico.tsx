@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { financeApi } from '../api/client';
 import type { MonthlySummary } from '../types';
 import { formatCurrency, formatMinutes, MONTH_NAMES } from '../utils/format';
+import { getCyclePeriodStr } from '../utils/cycle';
 
 export default function Historico() {
   const [summaries, setSummaries] = useState<MonthlySummary[]>([]);
@@ -40,6 +41,9 @@ export default function Historico() {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>
                       {MONTH_NAMES[s.month - 1]} {s.year}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Ciclo: {getCyclePeriodStr(s.year, s.month, 21)}
                     </div>
                   </div>
                   <div className="hist-cells">

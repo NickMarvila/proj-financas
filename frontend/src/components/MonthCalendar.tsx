@@ -1,10 +1,12 @@
 import React from 'react';
 import type { WorkDay, Holiday } from '../types';
 import { formatMinutes } from '../utils/format';
+import { getCycleRange, formatDateIso } from '../utils/cycle';
 
 export interface MonthCalendarProps {
   year: number;
   month: number;
+  cutDay?: number;
   workDays: WorkDay[];
   holidays?: Holiday[];
   selectedDate: string | null;
@@ -14,16 +16,17 @@ export interface MonthCalendarProps {
 export default function MonthCalendar({
   year,
   month,
+  cutDay = 21,
   workDays,
   holidays = [],
   selectedDate,
   onSelectDate,
 }: MonthCalendarProps) {
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const firstDayOfWeek = new Date(year, month - 1, 1).getDay(); // 0 = Dom, 1 = Seg, ...
+  const { startDate, endDate } = getCycleRange(year, month, cutDay);
+
   const todayObj = new Date();
   todayObj.setHours(0, 0, 0, 0);
-  const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+  const todayStr = formatDateIso(todayObj);
 
   const workDaysByDate = new Map<string, WorkDay>();
   workDays.forEach(w => workDaysByDate.set(w.date, w));
@@ -33,6 +36,8 @@ export default function MonthCalendar({
 
   const calendarSlots: Array<{
     day: number;
+    monthAbbr: string;
+    isMonthBoundary: boolean;
     dateStr: string;
     dayOfWeek: number;
     isToday: boolean;
@@ -41,23 +46,31 @@ export default function MonthCalendar({
     workDay?: WorkDay;
   } | null> = [];
 
-  // Espaços vazios antes do dia 1
+  // Espaços vazios antes do dia de início do ciclo (alinhando com DOM, SEG, ...)
+  const firstDayOfWeek = startDate.getDay();
   for (let i = 0; i < firstDayOfWeek; i++) {
     calendarSlots.push(null);
   }
 
-  // Dias do mês
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const dateObj = new Date(year, month - 1, day);
-    const dayOfWeek = dateObj.getDay();
+  const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  // Percorrer exatamente os dias do ciclo financeiro (ex: 21 de um mês até 20 do mês seguinte)
+  const cur = new Date(startDate);
+  while (cur <= endDate) {
+    const dateStr = formatDateIso(cur);
+    const day = cur.getDate();
+    const dayOfWeek = cur.getDay();
     const isToday = dateStr === todayStr;
-    const isFuture = dateObj > todayObj;
+    const isFuture = cur > todayObj;
     const isSunday = dayOfWeek === 0;
+    const isMonthBoundary = (cur.getTime() === startDate.getTime()) || (day === 1);
+    const monthAbbr = MONTH_SHORT[cur.getMonth()];
     const workDay = workDaysByDate.get(dateStr);
 
     calendarSlots.push({
       day,
+      monthAbbr,
+      isMonthBoundary,
       dateStr,
       dayOfWeek,
       isToday,
@@ -65,6 +78,14 @@ export default function MonthCalendar({
       isSunday,
       workDay,
     });
+
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // Preencher espaços vazios até fechar a linha da última semana
+  const lastDayOfWeek = endDate.getDay();
+  for (let i = lastDayOfWeek + 1; i <= 6; i++) {
+    calendarSlots.push(null);
   }
 
   return (
@@ -78,20 +99,16 @@ export default function MonthCalendar({
         ))}
       </div>
 
-      {/* Grade de dias do calendário */}
+      {/* Grade de dias do calendário baseada no ciclo */}
       <div className="cal-grid">
         {calendarSlots.map((slot, idx) => {
           if (!slot) {
             return <div key={`empty-${idx}`} className="cal-cell empty" aria-hidden="true" />;
           }
 
-          const { day, dateStr, dayOfWeek, isToday, isFuture, isSunday, workDay } = slot;
+          const { day, monthAbbr, isMonthBoundary, dateStr, dayOfWeek, isToday, isFuture, isSunday, workDay } = slot;
           const isSelected = selectedDate === dateStr;
 
-          // Lógica de cores (as cores em si ficam no CSS: .green / .red / .future / .sunday):
-          // Verde: dias cumpridos corretamente / folgas compensadas
-          // Vermelho: incompleto / faltando horas / faltas
-          // Neutro: DSR e dias futuros
           const toShortHours = (mins: number) => {
             const h = Math.floor(mins / 60);
             const m = mins % 60;
@@ -164,7 +181,7 @@ export default function MonthCalendar({
             badgeColor = '#f87171';
           }
 
-          const label = `Dia ${day}${subText ? `, ${subText}` : ''}${badgeText ? `, ${badgeText}` : ''}`;
+          const label = `Dia ${day} de ${monthAbbr}${subText ? `, ${subText}` : ''}${badgeText ? `, ${badgeText}` : ''}`;
 
           return (
             <button
@@ -175,11 +192,25 @@ export default function MonthCalendar({
               aria-label={label}
               aria-pressed={isSelected}
             >
-              {/* Linha superior: Dia (com destaque se for hoje ou sábado) */}
-              <div className="cal-top">
+              {/* Linha superior: Dia + identificador do mês na transição */}
+              <div className="cal-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                 <span className={`cal-day${isToday ? ' today' : ''}${dayOfWeek === 6 ? ' sat' : ''}`}>
                   {day}
                 </span>
+                {isMonthBoundary && (
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: isToday ? '#10b981' : 'var(--text-secondary)',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                  }}>
+                    {monthAbbr}
+                  </span>
+                )}
               </div>
 
               {/* Linha intermediária: Horas ou status */}

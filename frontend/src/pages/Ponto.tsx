@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, 
 import { authApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
 import type { WorkDay, TimeRecord, Holiday, UserSummary } from '../types';
 import { formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
+import { getCurrentCycle, getCyclePeriodStr, getCycleRange, formatDateIso } from '../utils/cycle';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
 
@@ -17,15 +18,14 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
 };
 
 export default function Ponto() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const initialCycle = getCurrentCycle();
+  const [year, setYear] = useState(initialCycle.year);
+  const [month, setMonth] = useState(initialCycle.month);
   const [workDays, setWorkDays] = useState<WorkDay[]>([]);
   const [records, setRecords] = useState<TimeRecord[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  );
+  const todayIso = formatDateIso(new Date());
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedDay, setSelectedDay] = useState<WorkDay | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
@@ -67,42 +67,42 @@ export default function Ponto() {
       ]);
       setHolidays(hols);
 
-      // Injetar sábados e feriados — seguem o MÊS CALENDÁRIO
-      const calMonthStart = new Date(year, month - 1, 1);
-      const calMonthEnd = new Date(year, month, 0); // último dia do mês
+      // Ciclo financeiro do dia 21 ao dia 20 do mês seguinte
+      const { startDate: cycleStart, endDate: cycleEnd } = getCycleRange(year, month, 21);
+      const cycleStartStr = formatDateIso(cycleStart);
+      const cycleEndStr = formatDateIso(cycleEnd);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const fullHistory = [...wds];
-      const historyDates = new Set(wds.map((w: any) => w.date));
+      // Filtrar registros que caem dentro do ciclo financeiro
+      const fullHistory = wds.filter(w => w.date >= cycleStartStr && w.date <= cycleEndStr);
+      const historyDates = new Set(fullHistory.map((w: any) => w.date));
       const holidayDates = new Set(hols.map(h => h.date));
 
-      // Injetar feriados do mês que ainda não possuem registro de workDay
+      // Injetar feriados do ciclo que ainda não possuem registro de workDay
       hols.forEach(h => {
-        if (!historyDates.has(h.date)) {
+        if (h.date >= cycleStartStr && h.date <= cycleEndStr && !historyDates.has(h.date)) {
           const hDate = new Date(h.date + 'T00:00:00');
-          if (hDate >= calMonthStart && hDate <= calMonthEnd) {
-            fullHistory.push({
-              id: -hDate.getTime() - 1000,
-              date: h.date,
-              workedMinutes: 0,
-              contractMinutes: 0,
-              overtimeMinutes: 0,
-              overtimeValue: 0,
-              isSaturday: hDate.getDay() === 6,
-              overtimeNotified: false,
-              status: 'HOLIDAY',
-              holidayName: h.name,
-            } as WorkDay);
-          }
+          fullHistory.push({
+            id: -hDate.getTime() - 1000,
+            date: h.date,
+            workedMinutes: 0,
+            contractMinutes: 0,
+            overtimeMinutes: 0,
+            overtimeValue: 0,
+            isSaturday: hDate.getDay() === 6,
+            overtimeNotified: false,
+            status: 'HOLIDAY',
+            holidayName: h.name,
+          } as WorkDay);
         }
       });
 
-      // Coletar sábados decorridos que não tiveram batida registrada e NÃO são feriados
+      // Coletar sábados decorridos do ciclo que não tiveram batida registrada e NÃO são feriados
       const unworkedSaturdays: Date[] = [];
-      for (let d = new Date(calMonthStart); d <= calMonthEnd; d.setDate(d.getDate() + 1)) {
+      for (let d = new Date(cycleStart); d <= cycleEnd; d.setDate(d.getDate() + 1)) {
         if (d.getDay() === 6 && d <= today) {
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const dateStr = formatDateIso(d);
           if (!historyDates.has(dateStr) && !holidayDates.has(dateStr)) {
             unworkedSaturdays.push(new Date(d));
           }
@@ -113,7 +113,7 @@ export default function Ponto() {
       unworkedSaturdays.sort((a, b) => a.getTime() - b.getTime());
 
       unworkedSaturdays.forEach((d, index) => {
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dateStr = formatDateIso(d);
         const isCompensated = index < 2; // primeiras 2 folgas de sábado são compensadas pelo +30min seg-qui
         fullHistory.push({
           id: -d.getTime(),
@@ -131,21 +131,30 @@ export default function Ponto() {
       fullHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       setWorkDays(fullHistory);
-      setRecords(recs);
+      setRecords(recs.filter(r => {
+        const d = r.timestamp.slice(0, 10);
+        return d >= cycleStartStr && d <= cycleEndStr;
+      }));
 
       // Atualizar dia selecionado
       const currentSelected = fullHistory.find(w => w.date === selectedDate);
       if (currentSelected) {
         setSelectedDay(currentSelected);
       } else {
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const todayStr = formatDateIso(today);
         const foundToday = fullHistory.find(w => w.date === todayStr);
         if (foundToday) {
           setSelectedDate(todayStr);
           setSelectedDay(foundToday);
+        } else if (todayStr >= cycleStartStr && todayStr <= cycleEndStr) {
+          setSelectedDate(todayStr);
+          setSelectedDay(null);
         } else if (fullHistory.length > 0) {
           setSelectedDate(fullHistory[0].date);
           setSelectedDay(fullHistory[0]);
+        } else {
+          setSelectedDate(cycleStartStr);
+          setSelectedDay(null);
         }
       }
     } finally {
@@ -284,11 +293,16 @@ export default function Ponto() {
           )}
 
           <div className="month-nav">
-            <button type="button" className="btn btn-secondary btn-icon" aria-label="Mês anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
-            <span className="month-nav-label">
-              {MONTH_NAMES[month - 1]} {year}
-            </span>
-            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo mês" onClick={nextMonth}><ChevronRight size={16} /></button>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
+            <div style={{ textAlign: 'center', minWidth: 155 }}>
+              <span className="month-nav-label" style={{ display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>
+                {MONTH_NAMES[month - 1]} {year}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {getCyclePeriodStr(year, month, 21)}
+              </span>
+            </div>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo ciclo" onClick={nextMonth}><ChevronRight size={16} /></button>
           </div>
         </div>
       </div>
@@ -325,7 +339,7 @@ export default function Ponto() {
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
             <div className="section-title" style={{ marginBottom: 0 }}>
-              <span className="dot" />Dias do mês
+              <span className="dot" />Ciclo {getCyclePeriodStr(year, month, 21)}
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
@@ -364,6 +378,7 @@ export default function Ponto() {
             <MonthCalendar
               year={year}
               month={month}
+              cutDay={21}
               workDays={workDays}
               holidays={holidays}
               selectedDate={selectedDate}
