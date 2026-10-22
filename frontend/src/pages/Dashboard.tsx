@@ -199,57 +199,38 @@ export default function Dashboard() {
       {/* Cabeçalho do Dashboard */}
       <div className="dash-header">
         <div className="dash-header-title-row">
-          <div>
+          <div className="dash-header-title-box">
             <h1 className="dash-title">Dashboard</h1>
             <span className="dash-subtitle">{getCycleDatesStr()}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {currentUser?.role === 'ADMIN' && users.length > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '5px 12px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-              }}>
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 500 }}>
-                  👤 Colaborador:
-                </span>
-                <select
-                  id="select-employee-dashboard"
-                  value={selectedUserId ?? currentUser.id ?? ''}
-                  onChange={(e) => {
-                    const val = e.target.value ? Number(e.target.value) : undefined;
-                    setSelectedUserId(val);
-                  }}
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: '4px 8px',
-                    minWidth: 170,
-                    background: 'var(--bg-card, #1e293b)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.employeeName || u.username} ({u.username}) {u.role === 'ADMIN' ? '★ Admin' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
-              <RefreshCw size={13} className={syncing ? 'spin' : ''} />
-              <span>{syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
-            </button>
-          </div>
+          <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
+            <RefreshCw size={13} className={syncing ? 'spin' : ''} />
+            <span>{syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+          </button>
         </div>
+
+        {currentUser?.role === 'ADMIN' && users.length > 0 && (
+          <div className="admin-collaborator-bar">
+            <span className="admin-collab-label">
+              👤 Colaborador:
+            </span>
+            <select
+              id="select-employee-dashboard"
+              value={selectedUserId ?? currentUser.id ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined;
+                setSelectedUserId(val);
+              }}
+              className="admin-collab-select"
+            >
+              {users.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.employeeName || u.username} ({u.username}) {u.role === 'ADMIN' ? '★ Admin' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="dash-month-selector">
           <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>

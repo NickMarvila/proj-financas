@@ -314,24 +314,32 @@ body::before {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+}
+.dash-header-title-box {
+  min-width: 0;
+  flex: 1;
 }
 .dash-title {
   font-size: 20px;
   font-weight: 800;
   color: var(--text-primary);
-  line-height: 1.1;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .dash-subtitle {
   font-size: 11px;
   color: var(--text-secondary);
   display: block;
   margin-top: 2px;
+  white-space: nowrap;
 }
 .btn-sync-pill {
   padding: 6px 12px;
   font-size: 11px;
   border-radius: 20px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .dash-month-selector {
   display: flex;
@@ -341,11 +349,16 @@ body::before {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 6px 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .dash-month-label {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
 }
 .dash-month-label .month-name {
   font-size: 13px;
@@ -355,6 +368,44 @@ body::before {
 .dash-month-label small {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+/* ===== Seletor de Colaborador (Admin) ===== */
+.admin-collaborator-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+  width: 100%;
+}
+.admin-collab-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.admin-collab-select {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  background: var(--bg-card, #1e293b);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  outline: none;
+  text-overflow: ellipsis;
 }
 
 /* ===== Hero Balance Card (Mobile & Desktop) ===== */
@@ -636,8 +687,33 @@ body::before {
 
 /* ===== Page Header ===== */
 .page-header { margin-bottom: 20px; }
-.page-title { font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
+.page-header-ponto {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.page-header-title-box {
+  width: 100%;
+  min-width: 0;
+}
+.page-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.page-header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
 
 /* Cabeçalho com título à esquerda e ações à direita (quebra de linha no celular) */
 .page-header-row {
@@ -646,7 +722,36 @@ body::before {
 }
 
 /* Seletor de mês: ‹ Outubro 2026 › */
-.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  box-sizing: border-box;
+}
+.month-nav-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  min-width: 0;
+}
+.month-nav-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.month-nav-sub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
 .month-nav-label {
   display: flex; flex-direction: column; align-items: center;
   min-width: 112px; text-align: center; font-weight: 600;
@@ -1032,7 +1137,30 @@ tbody td { padding: 10px 8px; color: var(--text-primary); }
   .main-content { margin-left: var(--sidebar-width); padding: 32px; }
   .mobile-bottom-nav, .mobile-overlay, .mobile-topbar { display: none; }
 
-  .dash-header { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .dash-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dash-header-title-row {
+    width: auto;
+    gap: 16px;
+  }
+  .dash-month-selector {
+    width: auto;
+    min-width: 260px;
+  }
+  .admin-collaborator-bar {
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .admin-collab-select {
+    min-width: 200px;
+    width: auto;
+  }
+
   .hero-balance-card { padding: 24px; margin-bottom: 20px; }
   .hero-balance-amount { font-size: 38px; }
   .dash-metrics-strip { gap: 16px; margin-bottom: 24px; }
@@ -1050,8 +1178,40 @@ tbody td { padding: 10px 8px; color: var(--text-primary); }
   .stat-value { font-size: 26px; }
 
   .page-header { margin-bottom: 32px; }
+  .page-header-ponto {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .page-header-title-box {
+    width: auto;
+  }
+  .page-header-actions {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    gap: 12px;
+  }
   .page-title { font-size: 28px; }
   .page-subtitle { font-size: 14px; }
+  .month-nav {
+    width: auto;
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 8px;
+  }
+  .month-nav-center {
+    min-width: 155px;
+  }
+  .month-nav-title {
+    font-size: 14px;
+  }
+  .month-nav-sub {
+    font-size: 11px;
+  }
   .month-nav-label { min-width: 120px; }
 
   .grid-2 { gap: 24px; }

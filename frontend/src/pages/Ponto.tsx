@@ -244,24 +244,16 @@ export default function Ponto() {
 
   return (
     <div>
-      <div className="page-header page-header-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
+      <div className="page-header page-header-ponto">
+        <div className="page-header-title-box">
           <h1 className="page-title">Registros de Ponto</h1>
           <p className="page-subtitle">Histórico de batidas e horas trabalhadas</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div className="page-header-actions">
           {currentUser?.role === 'ADMIN' && users.length > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-            }}>
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}>
+            <div className="admin-collaborator-bar">
+              <span className="admin-collab-label">
                 👤 Colaborador:
               </span>
               <select
@@ -271,17 +263,7 @@ export default function Ponto() {
                   const val = e.target.value ? Number(e.target.value) : undefined;
                   setSelectedUserId(val);
                 }}
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: '5px 10px',
-                  minWidth: 180,
-                  background: 'var(--bg-card, #1e293b)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer'
-                }}
+                className="admin-collab-select"
               >
                 {users.map(u => (
                   <option key={u.id} value={u.id}>
@@ -294,11 +276,11 @@ export default function Ponto() {
 
           <div className="month-nav">
             <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
-            <div style={{ textAlign: 'center', minWidth: 155 }}>
-              <span className="month-nav-label" style={{ display: 'block', fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>
+            <div className="month-nav-center">
+              <span className="month-nav-title">
                 {MONTH_NAMES[month - 1]} {year}
               </span>
-              <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <span className="month-nav-sub">
                 {getCyclePeriodStr(year, month, 21)}
               </span>
             </div>
