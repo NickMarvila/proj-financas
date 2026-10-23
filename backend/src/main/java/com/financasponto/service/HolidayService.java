@@ -69,8 +69,10 @@ public class HolidayService {
         holiday.setIsNational(isNational != null ? isNational : false);
         Holiday saved = holidayRepository.save(holiday);
 
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        com.financasponto.utils.CycleUtils.Cycle cycle = com.financasponto.utils.CycleUtils.getCurrentCycle(date, cutDay);
         timeRecordService.recalculateWorkDay(user, date);
-        financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
+        financeService.recalculateMonthlySummary(user, cycle.month, cycle.year);
         return saved;
     }
 
@@ -81,7 +83,6 @@ public class HolidayService {
                 LocalDate date = h.getDate();
                 holidayRepository.delete(h);
                 timeRecordService.recalculateDayPunches(user, date);
-                financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
             }
         });
     }
@@ -90,7 +91,6 @@ public class HolidayService {
     public void deleteHolidayByDate(Usuario user, LocalDate date) {
         holidayRepository.deleteByUserIdAndDate(user.getId(), date);
         timeRecordService.recalculateDayPunches(user, date);
-        financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
     }
 
     public boolean isHoliday(Long userId, LocalDate date) {

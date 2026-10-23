@@ -120,4 +120,21 @@ class FinanceServiceTest {
 
         assertEquals(0, BigDecimal.ZERO.compareTo(summary.getFinalBalance()));
     }
+
+    @Test
+    void octoberCycleCountsSaturdaysBetweenSep21AndOct20() {
+        givenSalary("3000.00");
+        user.setWorkSaturday("08:00 as 12:00");
+
+        java.time.LocalDate cycleStart = java.time.LocalDate.of(2026, 9, 21);
+        java.time.LocalDate cycleEnd = java.time.LocalDate.of(2026, 10, 20);
+        when(workDayRepository.countWorkedSaturdaysInCycle(1L, cycleStart, cycleEnd)).thenReturn(2L);
+
+        MonthlySummary summary = service.getSummary(user, 2026, 10);
+
+        assertEquals(4, summary.getTotalSaturdays());
+        assertEquals(2, summary.getRequiredSaturdays());
+        assertEquals(2, summary.getWorkedSaturdays());
+        assertEquals(0, summary.getMissingSaturdays());
+    }
 }

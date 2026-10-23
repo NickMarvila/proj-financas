@@ -131,6 +131,9 @@ public class TimeRecordService {
         List<TimeRecord> records = timeRecordRepository
                 .findByUserIdAndTimestampBetweenOrderByTimestampAsc(user.getId(), startOfDay, endOfDay);
 
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+        com.financasponto.utils.CycleUtils.Cycle cycle = com.financasponto.utils.CycleUtils.getCurrentCycle(date, cutDay);
+
         if (records.isEmpty()) {
             boolean isHoliday = holidayRepository.existsByUserIdAndDate(user.getId(), date);
             if (!isHoliday) {
@@ -139,7 +142,7 @@ public class TimeRecordService {
             } else {
                 recalculateWorkDay(user, date);
             }
-            financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
+            financeService.recalculateMonthlySummary(user, cycle.month, cycle.year);
             return;
         }
 
@@ -154,7 +157,7 @@ public class TimeRecordService {
         }
 
         recalculateWorkDay(user, date);
-        financeService.recalculateMonthlySummary(user, date.getMonthValue(), date.getYear());
+        financeService.recalculateMonthlySummary(user, cycle.month, cycle.year);
     }
 
     /** Global (não por usuário): o id da mensagem do Gmail é único independente do dono da batida. */
@@ -239,11 +242,13 @@ public class TimeRecordService {
 
     @Transactional
     public void recalculateAllForUser(Usuario user) {
+        int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
         List<WorkDay> allDays = workDayRepository.findByUserId(user.getId());
         Set<String> cycleMonths = new HashSet<>();
         for (WorkDay wd : allDays) {
             recalculateWorkDay(user, wd.getDate());
-            cycleMonths.add(wd.getDate().getYear() + "-" + wd.getDate().getMonthValue());
+            com.financasponto.utils.CycleUtils.Cycle c = com.financasponto.utils.CycleUtils.getCurrentCycle(wd.getDate(), cutDay);
+            cycleMonths.add(c.year + "-" + c.month);
         }
         for (String ym : cycleMonths) {
             String[] parts = ym.split("-");

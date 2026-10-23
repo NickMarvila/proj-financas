@@ -89,7 +89,7 @@ public class FinanceService {
         Integer overtimeMinutes = workDayRepository.sumOvertimeMinutesByUserIdAndDateBetween(userId, start, end);
         if (overtimeMinutes == null) overtimeMinutes = 0;
 
-        // Sábados seguem o MÊS CALENDÁRIO (dia 1 ao último dia), NÃO o ciclo 21-20
+        // Sábados seguem o ciclo financeiro (ex: dia 21 ao dia 20), não o mês calendário 1..31
         boolean worksSaturday = user.getWorkSaturday() == null || 
                 (!user.getWorkSaturday().toLowerCase().contains("não") && 
                  !user.getWorkSaturday().toLowerCase().contains("nao") && 
@@ -97,10 +97,8 @@ public class FinanceService {
                  !user.getWorkSaturday().trim().isEmpty());
 
         LocalDate today = LocalDate.now();
-        int totalSaturdays = CycleUtils.countSaturdaysInMonth(year, month);
-        LocalDate startOfMonth = LocalDate.of(year, month, 1);
-        LocalDate endOfMonth = startOfMonth.withDayOfMonth(startOfMonth.lengthOfMonth());
-        long workedSaturdays = workDayRepository.countWorkedSaturdaysInCycle(userId, startOfMonth, endOfMonth);
+        int totalSaturdays = CycleUtils.countSaturdays(start, end);
+        long workedSaturdays = workDayRepository.countWorkedSaturdaysInCycle(userId, start, end);
 
         int requiredSaturdays = 0;
         int missingSaturdays = 0;
@@ -110,14 +108,15 @@ public class FinanceService {
 
         if (worksSaturday) {
             // Escala 6x1 com compensação: 2 sábados são compensados pelas 8h de seg-qui (+30min/dia)
-            // Mês de 4 sábados -> 2 obrigatórios. Mês de 5 sábados -> 3 obrigatórios.
+            // Ciclo de 4 sábados -> 2 obrigatórios. Ciclo de 5 sábados -> 3 obrigatórios.
             requiredSaturdays = Math.max(0, totalSaturdays - 2);
 
-            // Sábados que já decorreram no mês até a data de hoje:
+            // Sábados que já decorreram dentro do ciclo (start .. end) até a data de hoje:
             int elapsedSaturdays = 0;
             int holidaySaturdays = 0;
-            if (year < today.getYear() || (year == today.getYear() && month < today.getMonthValue())) {
-                for (LocalDate d = startOfMonth; !d.isAfter(endOfMonth); d = d.plusDays(1)) {
+            if (!start.isAfter(today)) {
+                LocalDate limit = end.isBefore(today) ? end : today;
+                for (LocalDate d = start; !d.isAfter(limit); d = d.plusDays(1)) {
                     if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
                         elapsedSaturdays++;
                         if (holidayRepository.existsByUserIdAndDate(userId, d)) {
@@ -125,24 +124,13 @@ public class FinanceService {
                         }
                     }
                 }
-            } else if (year == today.getYear() && month == today.getMonthValue()) {
-                for (LocalDate d = startOfMonth; !d.isAfter(endOfMonth) && !d.isAfter(today); d = d.plusDays(1)) {
-                    if (d.getDayOfWeek() == java.time.DayOfWeek.SATURDAY) {
-                        elapsedSaturdays++;
-                        if (holidayRepository.existsByUserIdAndDate(userId, d)) {
-                            holidaySaturdays++;
-                        }
-                    }
-                }
-            } else {
-                elapsedSaturdays = 0;
             }
 
             // Sábados decorridos que o colaborador NÃO trabalhou (feriados não são falta nem exigem trabalho):
             int eligibleSaturdays = Math.max(0, elapsedSaturdays - holidaySaturdays);
             int elapsedUnworkedSaturdays = Math.max(0, eligibleSaturdays - (int) workedSaturdays);
 
-            // As primeiras 2 folgas de sábado do mês são compensadas pela jornada de 8h30 de seg-qui!
+            // As primeiras 2 folgas de sábado do ciclo são compensadas pela jornada de 8h30 de seg-qui!
             int compensatedSaturdays = Math.min(2, elapsedUnworkedSaturdays);
             compensatedMinutes = compensatedSaturdays * 240;
 

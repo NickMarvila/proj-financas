@@ -483,7 +483,7 @@ export default function Dashboard() {
               <div className="summary-row">
                 <span className="summary-row-label">Sábados Cumpridos</span>
                 <span className={`summary-row-val ${(s?.missingSaturdays ?? 0) === 0 ? 'text-green' : 'text-amber'}`} style={{ fontSize: 13 }}>
-                  {s.workedSaturdays ?? 0}/{s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no mês)
+                  {s.workedSaturdays ?? 0}/{s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no ciclo)
                 </span>
               </div>
             )}
