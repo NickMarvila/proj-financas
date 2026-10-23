@@ -241,6 +241,16 @@ export default function Ponto() {
   };
 
   useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 1100) {
+        setMobilePunchesOpen(false);
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     loadData();
   }, [year, month, selectedUserId]);
 
@@ -386,27 +396,15 @@ export default function Ponto() {
           {loading ? (
             <div className="loading-page" style={{ minHeight: 280 }}><div className="loading-spinner" /></div>
           ) : viewMode === 'calendar' ? (
-            <>
-              <MonthCalendar
-                year={year}
-                month={month}
-                cutDay={21}
-                workDays={workDays}
-                holidays={holidays}
-                selectedDate={selectedDate}
-                onSelectDate={handleSelectDate}
-              />
-              <div className="mobile-calendar-hint">
-                <span>Toque em um dia para ver ou editar batidas</span>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setMobilePunchesOpen(true)}
-                >
-                  Ver {formatDate(selectedDate + 'T00:00:00')}
-                </button>
-              </div>
-            </>
+            <MonthCalendar
+              year={year}
+              month={month}
+              cutDay={21}
+              workDays={workDays}
+              holidays={holidays}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+            />
           ) : (
             /* Visualização em Lista */
             workDays.length === 0 ? (

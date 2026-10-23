@@ -107,10 +107,8 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
   monthlyHoursGoal = 220,
   onChange,
 }) => {
-  // Acordeão: Segunda-feira inicia expandida como exemplo, os demais dias iniciam compactos
-  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({
-    workMonday: true,
-  });
+  // Acordeão: todos os dias iniciam compactos para leitura rápida no celular
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
   const [picker, setPicker] = useState<{
     isOpen: boolean;
@@ -256,15 +254,15 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
       <div className="schedule-summary-banner">
         <div className="schedule-summary-top">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <span className="text-secondary" style={{ fontSize: 13, fontWeight: 600 }}>
+            <div className="schedule-summary-headline">
+              <span className="text-secondary schedule-summary-label">
                 Carga Semanal Calculada:
               </span>
               <span className="schedule-weekly-pill">
                 {formatMinutesHuman(weeklyMinutes)} / semana
               </span>
             </div>
-            <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+            <p className="text-muted schedule-summary-sub">
               Média de ~{Math.round((weeklyMinutes * 4.33) / 60)}h mensais (meta configurada: {monthlyHoursGoal}h)
             </p>
           </div>
@@ -301,7 +299,7 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
         </div>
 
         <div className="schedule-callout">
-          <Sparkles size={16} className="text-green" style={{ flexShrink: 0, marginTop: 2 }} />
+          <Sparkles size={16} className="text-green schedule-callout-icon" />
           <span>
             <strong>Acordo de Compensação 6×1:</strong> Os +30 min diários de Seg–Qui (8h/mês) compensam 2 sábados de folga. Toque em um dia abaixo para expandir e editar os turnos.
           </span>
@@ -417,7 +415,7 @@ export const WorkScheduleEditor: React.FC<WorkScheduleEditorProps> = ({
                             </button>
                           </div>
 
-                          <span className="text-muted" style={{ fontSize: 13, marginTop: 16 }}>
+                          <span className="text-muted schedule-shift-sep">
                             até
                           </span>
 

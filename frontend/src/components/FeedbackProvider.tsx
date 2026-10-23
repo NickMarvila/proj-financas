@@ -49,6 +49,9 @@ export interface BottomSheetModalProps {
   children: React.ReactNode;
 }
 
+let modalIdCounter = 0;
+const openModalStack: number[] = [];
+
 export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   isOpen,
   onClose,
@@ -61,19 +64,32 @@ export const BottomSheetModal: React.FC<BottomSheetModalProps> = ({
   overlayClassName = '',
   children,
 }) => {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!isOpen) return;
+    const myId = ++modalIdCounter;
+    openModalStack.push(myId);
+    document.body.style.overflow = 'hidden';
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && openModalStack[openModalStack.length - 1] === myId) {
+        e.stopPropagation();
+        onCloseRef.current();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = prevOverflow;
+      const idx = openModalStack.indexOf(myId);
+      if (idx !== -1) openModalStack.splice(idx, 1);
+      if (openModalStack.length === 0) {
+        document.body.style.overflow = '';
+      }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

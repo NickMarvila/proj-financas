@@ -37,6 +37,16 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth >= 1100) {
+        setMobilePunchesOpen(false);
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     authApi.me().then(async (me) => {
       setCurrentUser(me);
       if (me.role === 'ADMIN') {
@@ -190,13 +200,6 @@ export default function Dashboard() {
   const overtimeToday = todayWorkDay?.overtimeMinutes ?? 0;
   const totalOvertime = s?.totalOvertimeMinutes ?? 0;
 
-  const getCycleDatesStr = () => {
-    const prev = new Date(currentMonth.year, currentMonth.month - 2, 21);
-    const curr = new Date(currentMonth.year, currentMonth.month - 1, 20);
-    const fd = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return `${fd(prev)} a ${fd(curr)}`;
-  };
-
   const handleSelectCalendarDate = (dateStr: string, workDay: WorkDay | null) => {
     setSelectedDate(dateStr);
     setSelectedDay(workDay);
@@ -226,7 +229,7 @@ export default function Dashboard() {
         <div className="dash-header-title-row">
           <div className="dash-header-title-box">
             <h1 className="dash-title">Dashboard</h1>
-            <span className="dash-subtitle">{getCycleDatesStr()}</span>
+            <span className="dash-subtitle">{getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}</span>
           </div>
           <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
             <RefreshCw size={14} className={syncing ? 'spin' : ''} />
@@ -407,16 +410,6 @@ export default function Dashboard() {
             selectedDate={selectedDate}
             onSelectDate={handleSelectCalendarDate}
           />
-          <div className="mobile-calendar-hint">
-            <span>Toque em um dia para ver ou editar batidas</span>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => setMobilePunchesOpen(true)}
-            >
-              Ver {formatDate(selectedDate + 'T00:00:00')}
-            </button>
-          </div>
         </div>
 
         {/* Painel Direito (Desktop >= 1100px) */}
