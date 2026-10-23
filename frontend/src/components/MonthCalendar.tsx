@@ -193,24 +193,12 @@ export default function MonthCalendar({
               aria-pressed={isSelected}
             >
               {/* Linha superior: Dia + identificador do mês na transição */}
-              <div className="cal-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', minWidth: 0 }}>
+              <div className="cal-top">
                 <span className={`cal-day${isToday ? ' today' : ''}${dayOfWeek === 6 ? ' sat' : ''}`}>
                   {day}
                 </span>
                 {isMonthBoundary && (
-                  <span style={{
-                    fontSize: 8,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.4px',
-                    color: isToday ? '#10b981' : 'var(--text-secondary)',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    padding: '1px 3px',
-                    borderRadius: 3,
-                    lineHeight: 1,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}>
+                  <span className={`cal-month-boundary${isToday ? ' today' : ''}`}>
                     {monthAbbr}
                   </span>
                 )}

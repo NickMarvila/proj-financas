@@ -3,6 +3,7 @@ import { CheckCircle2, AlertTriangle, XCircle, Clock, Edit2, Trash2, Plus, Check
 import type { WorkDay, TimeRecord } from '../types';
 import { formatMinutes, formatCurrency, formatDate, formatTime } from '../utils/format';
 import { timeRecordApi, holidayApi } from '../api/client';
+import { useFeedback } from './FeedbackProvider';
 
 export interface DayPunchesPanelProps {
   selectedDate: string; // YYYY-MM-DD
@@ -11,6 +12,7 @@ export interface DayPunchesPanelProps {
   isHoliday?: boolean;
   holidayName?: string;
   targetUserId?: number;
+  hideHeaderTitle?: boolean;
   onToggleHoliday?: (date: string, isHoliday: boolean, name?: string) => Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
@@ -22,9 +24,12 @@ export default function DayPunchesPanel({
   isHoliday = false,
   holidayName,
   targetUserId,
+  hideHeaderTitle = false,
   onToggleHoliday,
   onRefresh,
 }: DayPunchesPanelProps) {
+  const { toast, confirm } = useFeedback();
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTime, setEditTime] = useState<string>('');
   const [editPunchType, setEditPunchType] = useState<'IN' | 'OUT'>('IN');
@@ -59,7 +64,10 @@ export default function DayPunchesPanel({
   };
 
   const handleSaveEdit = async (r: TimeRecord) => {
-    if (!editTime) return alert('Selecione um horário válido!');
+    if (!editTime) {
+      toast.error('Selecione um horário válido!');
+      return;
+    }
     setSavingEdit(true);
     try {
       const newTimestamp = `${selectedDate}T${editTime}:00`;
@@ -68,9 +76,10 @@ export default function DayPunchesPanel({
         punchType: editPunchType,
       });
       setEditingId(null);
+      toast.success('Batida atualizada com sucesso!');
       await onRefresh();
     } catch (e: any) {
-      alert(`Erro ao atualizar ponto: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao atualizar ponto: ${e.response?.data?.error || e.message}`);
     } finally {
       setSavingEdit(false);
     }
@@ -78,29 +87,39 @@ export default function DayPunchesPanel({
 
   const handleDelete = async (r: TimeRecord) => {
     const formatted = formatTime(r.timestamp);
-    if (!window.confirm(`Tem certeza que deseja excluir a batida das ${formatted}?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Excluir batida de ponto',
+      message: `Tem certeza que deseja excluir a batida das ${formatted}?`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await timeRecordApi.delete(r.id);
+      toast.success('Batida excluída.');
       await onRefresh();
     } catch (e: any) {
-      alert(`Erro ao excluir ponto: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao excluir ponto: ${e.response?.data?.error || e.message}`);
     }
   };
 
   const handleAddNew = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTime) return alert('Digite um horário para a batida!');
+    if (!newTime) {
+      toast.error('Digite um horário para a batida!');
+      return;
+    }
     setAddingNew(true);
     try {
       const timestamp = `${selectedDate}T${newTime}:00`;
       await timeRecordApi.addManual(timestamp, targetUserId);
       setNewTime('');
       setShowAddForm(false);
+      toast.success('Nova batida registrada!');
       await onRefresh();
     } catch (e: any) {
-      alert(`Erro ao adicionar ponto: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao adicionar ponto: ${e.response?.data?.error || e.message}`);
     } finally {
       setAddingNew(false);
     }
@@ -108,7 +127,10 @@ export default function DayPunchesPanel({
 
   const handleSaveHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!holidayInputName.trim()) return alert('Digite o nome do feriado!');
+    if (!holidayInputName.trim()) {
+      toast.error('Digite o nome do feriado!');
+      return;
+    }
     setSavingHoliday(true);
     try {
       if (onToggleHoliday) {
@@ -118,15 +140,23 @@ export default function DayPunchesPanel({
         await onRefresh();
       }
       setShowHolidayForm(false);
+      toast.success('Feriado registrado na data!');
     } catch (e: any) {
-      alert(`Erro ao marcar feriado: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao marcar feriado: ${e.response?.data?.error || e.message}`);
     } finally {
       setSavingHoliday(false);
     }
   };
 
   const handleRemoveHoliday = async () => {
-    if (!window.confirm(`Deseja desmarcar o feriado desta data (${selectedDate})?`)) return;
+    const ok = await confirm({
+      title: 'Desmarcar feriado',
+      message: `Deseja desmarcar o feriado desta data (${formatDate(selectedDate + 'T00:00:00')})?`,
+      confirmLabel: 'Desmarcar',
+      danger: true,
+    });
+    if (!ok) return;
+
     setSavingHoliday(true);
     try {
       if (onToggleHoliday) {
@@ -135,8 +165,9 @@ export default function DayPunchesPanel({
         await holidayApi.deleteByDate(selectedDate, targetUserId);
         await onRefresh();
       }
+      toast.info('Feriado removido da data.');
     } catch (e: any) {
-      alert(`Erro ao remover feriado: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao remover feriado: ${e.response?.data?.error || e.message}`);
     } finally {
       setSavingHoliday(false);
     }
@@ -148,29 +179,31 @@ export default function DayPunchesPanel({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <div className="section-title" style={{ marginBottom: 0 }}>
-          <span className="dot" />
-          Batidas — {formatDate(selectedDate + 'T00:00:00')}
-        </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="punches-header">
+        {!hideHeaderTitle && (
+          <div className="section-title" style={{ marginBottom: 0 }}>
+            <span className="dot" />
+            Batidas — {formatDate(selectedDate + 'T00:00:00')}
+          </div>
+        )}
+        <div className="punches-header-actions">
           {!isHoliday && (
             <button
+              type="button"
               className="btn btn-secondary btn-sm"
               onClick={() => setShowHolidayForm(!showHolidayForm)}
-              style={{ fontSize: 12, padding: '4px 9px' }}
               title="Marcar este dia como feriado"
             >
-              <Sparkles size={13} style={{ color: '#a78bfa', marginRight: 4 }} />
+              <Sparkles size={14} className="text-purple" />
               {showHolidayForm ? 'Cancelar' : 'Feriado'}
             </button>
           )}
           <button
+            type="button"
             className="btn btn-secondary btn-sm"
             onClick={() => setShowAddForm(!showAddForm)}
-            style={{ fontSize: 12, padding: '4px 9px' }}
           >
-            <Plus size={13} />
+            <Plus size={14} />
             {showAddForm ? 'Fechar' : 'Nova Batida'}
           </button>
         </div>
@@ -178,32 +211,20 @@ export default function DayPunchesPanel({
 
       {/* Formulário para marcar feriado */}
       {showHolidayForm && (
-        <form onSubmit={handleSaveHoliday} style={{
-          background: 'rgba(139, 92, 246, 0.08)',
-          border: '1px solid rgba(139, 92, 246, 0.3)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 14px',
-          marginBottom: 16,
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ fontSize: 12, color: '#c4b5fd' }}>Nome do feriado:</span>
+        <form onSubmit={handleSaveHoliday} className="punches-inline-form holiday-form">
+          <span className="text-purple" style={{ fontSize: 12, fontWeight: 600 }}>Nome do feriado:</span>
           <input
             type="text"
-            className="form-input input-compact"
+            className="form-input"
             placeholder="Ex: Nossa Senhora Aparecida"
             value={holidayInputName}
             onChange={e => setHolidayInputName(e.target.value)}
-            style={{ flex: 1, minWidth: 160 }}
             required
           />
           <button
             type="submit"
-            className="btn btn-primary btn-sm"
+            className="btn btn-purple btn-sm btn-responsive"
             disabled={savingHoliday || !holidayInputName.trim()}
-            style={{ background: '#8b5cf6', borderColor: '#7c3aed' }}
           >
             {savingHoliday ? 'Salvando...' : 'Marcar Feriado'}
           </button>
@@ -212,32 +233,21 @@ export default function DayPunchesPanel({
 
       {/* Banner de Feriado */}
       {isHoliday && (
-        <div style={{
-          background: 'rgba(139, 92, 246, 0.08)',
-          border: '1px solid rgba(139, 92, 246, 0.3)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 16px',
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div className="punches-status-banner holiday">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
             <span style={{ fontSize: 22, flexShrink: 0 }}>🎉</span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: 13 }}>
+              <div className="text-purple" style={{ fontWeight: 700, fontSize: 13 }}>
                 Feriado — {holidayName || 'Dia de Folga Remunerada'}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+              <div className="text-secondary" style={{ fontSize: 11, marginTop: 2 }}>
                 Folga oficial remunerada. Não gera falta e não deduz horas extras.
               </div>
             </div>
           </div>
           <button
-            className="btn btn-secondary btn-sm"
-            style={{ fontSize: 11, color: '#f87171', borderColor: 'rgba(239,68,68,0.3)' }}
+            type="button"
+            className="btn btn-danger btn-sm"
             disabled={savingHoliday}
             onClick={handleRemoveHoliday}
           >
@@ -248,18 +258,8 @@ export default function DayPunchesPanel({
 
       {/* Formulário de adicionar nova batida neste dia */}
       {showAddForm && (
-        <form onSubmit={handleAddNew} style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 14px',
-          marginBottom: 16,
-          display: 'flex',
-          gap: 8,
-          alignItems: 'center',
-          flexWrap: 'wrap'
-        }}>
-          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Adicionar horário:</span>
+        <form onSubmit={handleAddNew} className="punches-inline-form">
+          <span className="text-secondary" style={{ fontSize: 12, fontWeight: 600 }}>Adicionar horário:</span>
           <input
             type="time"
             className="form-input input-compact"
@@ -279,88 +279,69 @@ export default function DayPunchesPanel({
 
       {/* Sábado de Folga Compensada */}
       {isCompensated && (
-        <div style={{
-          background: 'rgba(16, 185, 129, 0.08)',
-          border: '1px solid rgba(16, 185, 129, 0.25)',
-          borderRadius: 'var(--radius-md)',
-          padding: '16px',
-          marginBottom: 16,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-green)', fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
-            <CheckCircle2 size={18} />
-            <span>Sábado de Folga Compensada</span>
+        <div className="punches-status-banner compensated">
+          <div>
+            <div className="text-green" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
+              <CheckCircle2 size={18} />
+              <span>Sábado de Folga Compensada</span>
+            </div>
+            <p className="text-secondary" style={{ fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+              A jornada deste sábado (4h) foi compensada pelos 30 min extras diários realizados de segunda a quinta.
+            </p>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-            A jornada deste sábado (4h) foi compensada pelos 30 min extras diários realizados de segunda a quinta.
-          </p>
         </div>
       )}
 
       {/* Alerta de Jornada Incompleta */}
       {isIncomplete && (
-        <div style={{
-          background: 'rgba(239, 68, 68, 0.08)',
-          border: '1px solid rgba(239, 68, 68, 0.25)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 14px',
-          marginBottom: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}>
-          <AlertTriangle size={18} style={{ color: 'var(--accent-red)', flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: '#fca5a5' }}>
-            Jornada incompleta: falta registrar batida de saída ou a carga horária não foi atingida.
-          </span>
+        <div className="punches-status-banner incomplete">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={18} className="text-danger" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: '#fca5a5' }}>
+              Jornada incompleta: falta registrar batida de saída ou a carga horária não foi atingida.
+            </span>
+          </div>
         </div>
       )}
 
       {/* Sem batidas registradas nesta data */}
       {dayRecords.length === 0 ? (
-        <div style={{
-          background: isHoliday ? 'rgba(139, 92, 246, 0.06)' : isAbsent ? 'rgba(239, 68, 68, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-          border: `1px solid ${isHoliday ? 'rgba(139, 92, 246, 0.25)' : isAbsent ? 'rgba(239, 68, 68, 0.25)' : 'var(--border)'}`,
-          borderRadius: 'var(--radius-md)',
-          padding: '20px',
-          textAlign: 'center',
-          color: 'var(--text-secondary)',
-          fontSize: 13,
-        }}>
+        <div className={`punches-empty-box${isHoliday ? ' holiday' : isAbsent ? ' absent' : ''}`}>
           {isHoliday ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#a78bfa' }}>
+            <>
               <span style={{ fontSize: 24 }}>🎉</span>
-              <strong>Feriado Oficial ({holidayName || 'Folga Remunerada'})</strong>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              <strong className="text-purple">Feriado Oficial ({holidayName || 'Folga Remunerada'})</strong>
+              <span className="text-secondary" style={{ fontSize: 12 }}>
                 Nenhuma batida exigida para este dia. Aproveite o feriado!
               </span>
               <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddForm(true)}
-                style={{ marginTop: 8, fontSize: 12 }}
               >
                 + Trabalhou no Feriado? Adicionar Ponto
               </button>
-            </div>
+            </>
           ) : isAbsent ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--accent-red)' }}>
-              <XCircle size={22} />
-              <strong>Falta Registrada (−4h)</strong>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            <>
+              <XCircle size={22} className="text-danger" />
+              <strong className="text-danger">Falta Registrada (−4h)</strong>
+              <span className="text-secondary" style={{ fontSize: 12 }}>
                 Nenhum ponto registrado para esta jornada obrigatória.
               </span>
-            </div>
+            </>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <Clock size={22} style={{ color: 'var(--text-muted)' }} />
+            <>
+              <Clock size={22} className="text-muted" />
               <span>Nenhuma batida registrada nesta data.</span>
               <button
+                type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddForm(true)}
-                style={{ marginTop: 8, fontSize: 12 }}
               >
                 + Adicionar Ponto Manual
               </button>
-            </div>
+            </>
           )}
         </div>
       ) : (
@@ -369,10 +350,10 @@ export default function DayPunchesPanel({
           {dayRecords.map(r => {
             const isEditing = editingId === r.id;
             return (
-              <div key={r.id} className="timeline-item" style={{ position: 'relative' }}>
+              <div key={r.id} className="timeline-item">
                 <div className={`timeline-dot ${r.punchType === 'IN' ? 'in' : 'out'}`} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                <div className="timeline-item-body">
+                  <div className="timeline-item-row">
                     <div>
                       <div className={`timeline-label ${r.punchType === 'IN' ? 'in' : 'out'}`}>
                         {r.punchType === 'IN' ? '▶ ENTRADA' : '⏹ SAÍDA'}
@@ -381,7 +362,7 @@ export default function DayPunchesPanel({
                         <div className="timeline-time">{formatTime(r.timestamp)}</div>
                       ) : (
                         /* Campo de edição inline de horário */
-                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        <div className="timeline-edit-row">
                           <input
                             type="time"
                             className="form-input input-compact"
@@ -390,7 +371,7 @@ export default function DayPunchesPanel({
                             autoFocus
                           />
                           <select
-                            className="form-input input-compact"
+                            className="form-select input-compact"
                             value={editPunchType}
                             onChange={e => setEditPunchType(e.target.value as 'IN' | 'OUT')}
                           >
@@ -418,19 +399,17 @@ export default function DayPunchesPanel({
                           </button>
                         </div>
                       )}
-                      <div className="timeline-origin" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="timeline-origin">
                         <span>{r.origin}</span>
                         {r.origin === 'MANUAL' && (
-                          <span style={{ fontSize: 9, padding: '1px 4px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: 3, fontWeight: 600 }}>
-                            Manual
-                          </span>
+                          <span className="badge-tag amber">Manual</span>
                         )}
                       </div>
                     </div>
 
                     {/* Botões de Ação: Editar e Excluir */}
                     {!isEditing && (
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div className="timeline-actions">
                         <button
                           type="button"
                           className="icon-btn"
@@ -438,7 +417,7 @@ export default function DayPunchesPanel({
                           title="Alterar ponto"
                           aria-label="Alterar ponto"
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={15} />
                         </button>
                         <button
                           type="button"
@@ -447,7 +426,7 @@ export default function DayPunchesPanel({
                           title="Excluir ponto"
                           aria-label="Excluir ponto"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     )}
@@ -461,18 +440,16 @@ export default function DayPunchesPanel({
 
       {/* Resumo de horas do dia */}
       {workDay && (workDay.workedMinutes > 0 || (workDay.overtimeMinutes ?? 0) !== 0) && (
-        <div style={{ marginTop: 20, padding: '14px 0', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Total trabalhado no dia</span>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {formatMinutes(workDay.workedMinutes)}
-            </span>
+        <div className="punches-day-summary">
+          <div className="punches-day-summary-row">
+            <span className="text-secondary">Total trabalhado no dia</span>
+            <strong>{formatMinutes(workDay.workedMinutes)}</strong>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Hora extra do dia</span>
-            <span style={{ fontWeight: 700, color: (workDay.overtimeMinutes ?? 0) > 0 ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+          <div className="punches-day-summary-row">
+            <span className="text-secondary">Hora extra do dia</span>
+            <strong className={(workDay.overtimeMinutes ?? 0) > 0 ? 'text-amber' : 'text-muted'}>
               {formatMinutes(workDay.overtimeMinutes)} = {formatCurrency(workDay.overtimeValue ?? 0)}
-            </span>
+            </strong>
           </div>
         </div>
       )}

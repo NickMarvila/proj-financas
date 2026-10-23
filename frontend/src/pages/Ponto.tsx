@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, Sparkles, Trash2, X, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, List as ListIcon, Sparkles, Trash2, Plus, Clock } from 'lucide-react';
 import { authApi, workDayApi, timeRecordApi, holidayApi } from '../api/client';
 import type { WorkDay, TimeRecord, Holiday, UserSummary } from '../types';
 import { formatMinutes, formatDate, MONTH_NAMES } from '../utils/format';
 import { getCurrentCycle, getCyclePeriodStr, getCycleRange, formatDateIso } from '../utils/cycle';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
+import { BottomSheetModal, useFeedback } from '../components/FeedbackProvider';
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   NORMAL: { label: 'Normal', cls: 'badge-green' },
@@ -18,6 +19,8 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
 };
 
 export default function Ponto() {
+  const { toast, confirm } = useFeedback();
+
   const initialCycle = getCurrentCycle();
   const [year, setYear] = useState(initialCycle.year);
   const [month, setMonth] = useState(initialCycle.month);
@@ -27,6 +30,7 @@ export default function Ponto() {
   const todayIso = formatDateIso(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedDay, setSelectedDay] = useState<WorkDay | null>(null);
+  const [mobilePunchesOpen, setMobilePunchesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
@@ -114,7 +118,7 @@ export default function Ponto() {
 
       unworkedSaturdays.forEach((d, index) => {
         const dateStr = formatDateIso(d);
-        const isCompensated = index < 2; // primeiras 2 folgas de sábado são compensadas pelo +30min seg-qui
+        const isCompensated = index < 2;
         fullHistory.push({
           id: -d.getTime(),
           date: dateStr,
@@ -172,46 +176,65 @@ export default function Ponto() {
       }
       await loadData();
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro: ${e.response?.data?.error || e.message}`);
     }
   };
 
   const handleAddCustomHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHolDate || !newHolName.trim()) return alert('Preencha data e nome do feriado!');
+    if (!newHolDate || !newHolName.trim()) {
+      toast.error('Preencha data e nome do feriado!');
+      return;
+    }
     setSavingNewHol(true);
     try {
       const uid = selectedUserId ?? currentUser?.id;
       await holidayApi.create({ date: newHolDate, name: newHolName.trim() }, uid);
       setNewHolDate('');
       setNewHolName('');
+      toast.success('Feriado adicionado com sucesso!');
       await loadData();
     } catch (e: any) {
-      alert(`Erro ao adicionar feriado: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao adicionar feriado: ${e.response?.data?.error || e.message}`);
     } finally {
       setSavingNewHol(false);
     }
   };
 
   const handleDeleteHoliday = async (id: number) => {
-    if (!window.confirm('Excluir este feriado?')) return;
+    const ok = await confirm({
+      title: 'Excluir feriado',
+      message: 'Deseja realmente excluir este feriado do calendário?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await holidayApi.delete(id);
+      toast.success('Feriado excluído.');
       await loadData();
     } catch (e: any) {
-      alert(`Erro ao excluir: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao excluir: ${e.response?.data?.error || e.message}`);
     }
   };
 
   const handlePopulateNational = async () => {
-    if (!window.confirm(`Deseja importar e sincronizar os feriados nacionais de ${year}?`)) return;
+    const ok = await confirm({
+      title: 'Sincronizar Feriados Nacionais',
+      message: `Deseja importar e sincronizar todos os feriados nacionais de ${year}?`,
+      confirmLabel: 'Sincronizar',
+    });
+    if (!ok) return;
+
     setPopulatingHols(true);
     try {
       const uid = selectedUserId ?? currentUser?.id;
       await holidayApi.populateNational(year, uid);
+      toast.success(`Feriados nacionais de ${year} sincronizados!`);
       await loadData();
     } catch (e: any) {
-      alert(`Erro ao importar: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro ao importar: ${e.response?.data?.error || e.message}`);
     } finally {
       setPopulatingHols(false);
     }
@@ -232,7 +255,6 @@ export default function Ponto() {
   const missingSaturdaysCount = workDays.filter(w => w.status === 'ABSENT' && w.isSaturday).length;
   const missingMinutes = missingSaturdaysCount * 240;
 
-  // As folgas compensadas já estão quitadas na escala. Apenas faltas reais são deduzidas:
   const netOvertime = Math.max(0, grossOvertime - missingMinutes);
   const totalWorked = workDays.reduce((a, w) => a + (w.workedMinutes ?? 0), 0);
   const overtimeDays = workDays.filter(w => (w.overtimeMinutes ?? 0) > 0).length;
@@ -240,7 +262,14 @@ export default function Ponto() {
   const handleSelectDate = (dateStr: string, workDay: WorkDay | null) => {
     setSelectedDate(dateStr);
     setSelectedDay(workDay);
+    if (window.innerWidth < 1100) {
+      setMobilePunchesOpen(true);
+    }
   };
+
+  const curHol = holidays.find(h => h.date === selectedDate);
+  const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
+  const holName = selectedDay?.holidayName || curHol?.name;
 
   return (
     <div>
@@ -253,9 +282,9 @@ export default function Ponto() {
         <div className="page-header-actions">
           {currentUser?.role === 'ADMIN' && users.length > 0 && (
             <div className="admin-collaborator-bar">
-              <span className="admin-collab-label">
+              <label htmlFor="select-employee-ponto" className="admin-collab-label">
                 👤 Colaborador:
-              </span>
+              </label>
               <select
                 id="select-employee-ponto"
                 value={selectedUserId ?? currentUser.id ?? ''}
@@ -275,7 +304,7 @@ export default function Ponto() {
           )}
 
           <div className="month-nav">
-            <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={prevMonth}><ChevronLeft size={16} /></button>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={prevMonth}><ChevronLeft size={18} /></button>
             <div className="month-nav-center">
               <span className="month-nav-title">
                 {MONTH_NAMES[month - 1]} {year}
@@ -284,13 +313,13 @@ export default function Ponto() {
                 {getCyclePeriodStr(year, month, 21)}
               </span>
             </div>
-            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo ciclo" onClick={nextMonth}><ChevronRight size={16} /></button>
+            <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo ciclo" onClick={nextMonth}><ChevronRight size={18} /></button>
           </div>
         </div>
       </div>
 
-      {/* Resumo do mês em ribbon de 3 colunas perfeitamente equilibrado */}
-      <div className="dash-metrics-strip" style={{ marginBottom: 16 }}>
+      {/* Resumo do mês em ribbon 2+1 no celular e 3 colunas em 480px+ */}
+      <div className="dash-metrics-strip">
         <div className="dash-metric-card purple">
           <div className="metric-head">
             <span>⏱ Trabalhado</span>
@@ -319,35 +348,35 @@ export default function Ponto() {
       <div className="grid-2">
         {/* Painel Esquerdo: Calendário Mensal ou Lista */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+          <div className="ponto-card-header">
             <div className="section-title" style={{ marginBottom: 0 }}>
               <span className="dot" />Ciclo {getCyclePeriodStr(year, month, 21)}
             </div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="ponto-header-controls">
               <button
+                type="button"
                 className="btn btn-sm btn-secondary"
                 onClick={() => setShowHolidaysModal(true)}
-                style={{ padding: '4px 10px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
                 title="Visualizar e gerenciar feriados"
               >
-                <Sparkles size={13} style={{ color: '#a78bfa' }} />
+                <Sparkles size={14} className="text-purple" />
                 Feriados ({holidays.length})
               </button>
-              <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', padding: 3, borderRadius: 8 }}>
+              <div className="view-toggle-group">
                 <button
+                  type="button"
                   className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ padding: '4px 10px', fontSize: 12, border: 'none' }}
                   onClick={() => setViewMode('calendar')}
                 >
-                  <CalendarIcon size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  <CalendarIcon size={14} />
                   Calendário
                 </button>
                 <button
+                  type="button"
                   className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ padding: '4px 10px', fontSize: 12, border: 'none' }}
                   onClick={() => setViewMode('list')}
                 >
-                  <ListIcon size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                  <ListIcon size={14} />
                   Lista
                 </button>
               </div>
@@ -357,77 +386,74 @@ export default function Ponto() {
           {loading ? (
             <div className="loading-page" style={{ minHeight: 280 }}><div className="loading-spinner" /></div>
           ) : viewMode === 'calendar' ? (
-            <MonthCalendar
-              year={year}
-              month={month}
-              cutDay={21}
-              workDays={workDays}
-              holidays={holidays}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-            />
+            <>
+              <MonthCalendar
+                year={year}
+                month={month}
+                cutDay={21}
+                workDays={workDays}
+                holidays={holidays}
+                selectedDate={selectedDate}
+                onSelectDate={handleSelectDate}
+              />
+              <div className="mobile-calendar-hint">
+                <span>Toque em um dia para ver ou editar batidas</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setMobilePunchesOpen(true)}
+                >
+                  Ver {formatDate(selectedDate + 'T00:00:00')}
+                </button>
+              </div>
+            </>
           ) : (
             /* Visualização em Lista */
             workDays.length === 0 ? (
               <div className="empty-state"><div className="empty-icon">🗓️</div><p>Nenhum registro neste mês</p></div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto', paddingRight: 4 }}>
+              <div className="ponto-list-container">
                 {workDays.map(w => {
                   const s = STATUS_MAP[w.status] ?? STATUS_MAP.NORMAL;
                   const isCompensated = w.status === 'COMPENSATED';
                   const isHolidayDay = w.status === 'HOLIDAY';
                   const isSelected = selectedDate === w.date;
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={w.id}
                       onClick={() => handleSelectDate(w.date, w)}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '12px 14px',
-                        background: isSelected ? 'rgba(16,185,129,0.08)' : isHolidayDay ? 'rgba(139,92,246,0.06)' : isCompensated ? 'rgba(16,185,129,0.04)' : w.isSaturday ? 'rgba(251,191,36,0.03)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isSelected ? 'rgba(16,185,129,0.4)' : isHolidayDay ? 'rgba(139,92,246,0.3)' : isCompensated ? 'rgba(16,185,129,0.2)' : 'var(--border)'}`,
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        gap: 8,
-                        flexWrap: 'wrap',
-                      }}
+                      className={`ponto-list-item${isSelected ? ' selected' : isHolidayDay ? ' holiday' : isCompensated ? ' compensated' : w.isSaturday ? ' saturday' : ''}`}
                     >
-                      {/* Esquerda: Data + Tipo */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: isHolidayDay ? '#a78bfa' : w.isSaturday ? '#fbbf24' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700 }} className={isHolidayDay ? 'text-purple' : w.isSaturday ? 'text-amber' : ''}>
                             {formatDate(w.date)}
-                            {w.isSaturday && (
-                              <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 5px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', borderRadius: 3, fontWeight: 700, verticalAlign: 'middle' }}>
-                                SÁB
-                              </span>
-                            )}
-                            {isHolidayDay && (
-                              <span style={{ marginLeft: 6, fontSize: 9, padding: '2px 5px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', borderRadius: 3, fontWeight: 700, verticalAlign: 'middle' }}>
-                                FERIADO
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                            {isHolidayDay ? `Feriado oficial: ${w.holidayName || 'Folga remunerada'}` : isCompensated ? 'Folga compensada pela jornada semanal' : `${formatMinutes(w.workedMinutes)} trabalhadas`}
-                          </div>
+                          </span>
+                          {w.isSaturday && (
+                            <span className="badge-tag amber">SÁB</span>
+                          )}
+                          {isHolidayDay && (
+                            <span className="badge-tag purple">FERIADO</span>
+                          )}
+                        </div>
+                        <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>
+                          {isHolidayDay ? `Feriado oficial: ${w.holidayName || 'Folga remunerada'}` : isCompensated ? 'Folga compensada pela jornada semanal' : `${formatMinutes(w.workedMinutes)} trabalhadas`}
                         </div>
                       </div>
 
-                      {/* Direita: Extra + Status */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                        <span style={{
-                          fontSize: 13, fontWeight: 700,
-                          color: (w.overtimeMinutes ?? 0) > 0 ? 'var(--accent-amber)' : w.status === 'ABSENT' ? 'var(--accent-red)' : isHolidayDay ? '#a78bfa' : 'var(--text-muted)'
-                        }}>
+                        <span
+                          style={{ fontSize: 13, fontWeight: 700 }}
+                          className={(w.overtimeMinutes ?? 0) > 0 ? 'text-amber' : w.status === 'ABSENT' ? 'text-danger' : isHolidayDay ? 'text-purple' : 'text-muted'}
+                        >
                           {(w.overtimeMinutes ?? 0) > 0 ? `+${formatMinutes(w.overtimeMinutes)}` : w.status === 'ABSENT' ? '-4h' : isHolidayDay ? 'Feriado' : isCompensated ? 'Comp.' : '--'}
                         </span>
-                        <span className={`badge ${s.cls}`} style={{ fontSize: 10 }}>
+                        <span className={`badge ${s.cls}`}>
                           {s.label}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -435,207 +461,144 @@ export default function Ponto() {
           )}
         </div>
 
-        {/* Painel Direito: Batidas do Dia com Edição, Exclusão e Nova Batida */}
-        <div className="card">
-          {(() => {
-            const curHol = holidays.find(h => h.date === selectedDate);
-            const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
-            const holName = selectedDay?.holidayName || curHol?.name;
-            return (
-              <DayPunchesPanel
-                selectedDate={selectedDate}
-                workDay={selectedDay}
-                records={records}
-                isHoliday={isHol}
-                holidayName={holName}
-                targetUserId={selectedUserId ?? currentUser?.id}
-                onToggleHoliday={handleToggleHoliday}
-                onRefresh={loadData}
-              />
-            );
-          })()}
+        {/* Painel Direito (Desktop >= 1100px) */}
+        <div className="card desktop-punches-card">
+          <DayPunchesPanel
+            selectedDate={selectedDate}
+            workDay={selectedDay}
+            records={records}
+            isHoliday={isHol}
+            holidayName={holName}
+            targetUserId={selectedUserId ?? currentUser?.id}
+            onToggleHoliday={handleToggleHoliday}
+            onRefresh={loadData}
+          />
         </div>
       </div>
 
-      {/* Modal de Gestão de Feriados */}
-      {showHolidaysModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: 16,
-        }}>
-          <div style={{
-            background: 'var(--bg-card, #111827)',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-lg, 12px)',
-            width: '100%',
-            maxWidth: 520,
-            maxHeight: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-            overflow: 'hidden',
-          }}>
-            {/* Modal Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--border)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 20 }}>🎉</span>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>Feriados ({year})</span>
-              </div>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowHolidaysModal(false)}
-                style={{ padding: 4 }}
-              >
-                <X size={16} />
-              </button>
+      {/* Bottom Sheet de Batidas do Dia (Celular e Tablet < 1100px) */}
+      <BottomSheetModal
+        isOpen={mobilePunchesOpen}
+        onClose={() => setMobilePunchesOpen(false)}
+        title={`Batidas — ${formatDate(selectedDate + 'T00:00:00')}`}
+        icon={<Clock size={18} className="text-green" />}
+        overlayClassName="sheet-below-1100"
+      >
+        <DayPunchesPanel
+          selectedDate={selectedDate}
+          workDay={selectedDay}
+          records={records}
+          isHoliday={isHol}
+          holidayName={holName}
+          targetUserId={selectedUserId ?? currentUser?.id}
+          hideHeaderTitle
+          onToggleHoliday={handleToggleHoliday}
+          onRefresh={loadData}
+        />
+      </BottomSheetModal>
+
+      {/* Modal de Gestão de Feriados (Bottom Sheet no Celular) */}
+      <BottomSheetModal
+        isOpen={showHolidaysModal}
+        onClose={() => setShowHolidaysModal(false)}
+        title={`Feriados (${year})`}
+        icon={<span>🎉</span>}
+        footer={
+          <div className="modal-actions-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowHolidaysModal(false)}
+            >
+              Concluir
+            </button>
+          </div>
+        }
+      >
+        {/* Botão de Auto-Importar Feriados Nacionais */}
+        <div className="holiday-import-box">
+          <div style={{ minWidth: 0, flex: '1 1 180px' }}>
+            <div className="text-purple" style={{ fontSize: 13, fontWeight: 700 }}>Feriados Nacionais Brasileiros</div>
+            <div className="text-secondary" style={{ fontSize: 12, marginTop: 2 }}>Preenche automaticamente todas as datas oficiais do ano</div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-purple btn-sm btn-responsive"
+            onClick={handlePopulateNational}
+            disabled={populatingHols}
+          >
+            <Sparkles size={14} />
+            {populatingHols ? 'Importando...' : 'Sincronizar Nacionais'}
+          </button>
+        </div>
+
+        {/* Formulário para Adicionar Novo Feriado */}
+        <form onSubmit={handleAddCustomHoliday} className="punches-inline-form">
+          <span style={{ fontSize: 13, fontWeight: 600, width: '100%' }}>+ Adicionar Feriado Personalizado</span>
+          <div className="form-row-2" style={{ width: '100%' }}>
+            <input
+              type="date"
+              className="form-input"
+              value={newHolDate}
+              onChange={e => setNewHolDate(e.target.value)}
+              required
+            />
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Nome (ex: Feriado Municipal)"
+              value={newHolName}
+              onChange={e => setNewHolName(e.target.value)}
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-secondary btn-sm btn-block"
+            disabled={savingNewHol || !newHolDate || !newHolName.trim()}
+          >
+            <Plus size={15} />
+            {savingNewHol ? 'Salvando...' : 'Adicionar Feriado'}
+          </button>
+        </form>
+
+        {/* Lista de Feriados Cadastrados */}
+        <div>
+          <span className="text-secondary" style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+            Feriados cadastrados em {year}:
+          </span>
+          {holidays.length === 0 ? (
+            <div className="text-muted" style={{ textAlign: 'center', padding: 16, fontSize: 13 }}>
+              Nenhum feriado cadastrado para este ano.
             </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Botão de Auto-Importar Feriados Nacionais */}
-              <div style={{
-                background: 'rgba(139, 92, 246, 0.08)',
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#a78bfa' }}>Feriados Nacionais Brasileiros</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Preenche automaticamente todas as datas oficiais do ano</div>
-                </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  style={{ background: '#8b5cf6', borderColor: '#7c3aed', fontSize: 11 }}
-                  onClick={handlePopulateNational}
-                  disabled={populatingHols}
-                >
-                  <Sparkles size={13} style={{ marginRight: 4 }} />
-                  {populatingHols ? 'Importando...' : 'Sincronizar Nacionais'}
-                </button>
-              </div>
-
-              {/* Formulário para Adicionar Novo Feriado */}
-              <form onSubmit={handleAddCustomHoliday} style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)',
-                padding: '12px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>+ Adicionar Feriado Personalizado</span>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <input
-                    type="date"
-                    className="form-input input-compact"
-                    value={newHolDate}
-                    onChange={e => setNewHolDate(e.target.value)}
-                    required
-                    style={{ flex: 1, minWidth: 130 }}
-                  />
-                  <input
-                    type="text"
-                    className="form-input input-compact"
-                    placeholder="Nome (ex: Feriado Municipal)"
-                    value={newHolName}
-                    onChange={e => setNewHolName(e.target.value)}
-                    required
-                    style={{ flex: 2, minWidth: 160 }}
-                  />
+          ) : (
+            <div className="holiday-list">
+              {holidays.map(h => (
+                <div key={h.id} className="holiday-list-item">
+                  <div className="holiday-list-info">
+                    <strong className="text-purple">
+                      {formatDate(h.date + 'T00:00:00')}
+                    </strong>
+                    <span>{h.name}</span>
+                    {h.isNational && (
+                      <span className="badge-tag purple">Nacional</span>
+                    )}
+                  </div>
                   <button
-                    type="submit"
-                    className="btn btn-secondary btn-sm"
-                    disabled={savingNewHol || !newHolDate || !newHolName.trim()}
-                    style={{ fontSize: 12 }}
+                    type="button"
+                    className="icon-btn danger"
+                    onClick={() => handleDeleteHoliday(h.id)}
+                    title="Excluir feriado"
+                    aria-label={`Excluir feriado ${h.name}`}
                   >
-                    <Plus size={14} style={{ marginRight: 4 }} />
-                    {savingNewHol ? 'Salvando...' : 'Adicionar'}
+                    <Trash2 size={15} />
                   </button>
                 </div>
-              </form>
-
-              {/* Lista de Feriados Cadastrados */}
-              <div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>
-                  Feriados cadastrados em {year}:
-                </span>
-                {holidays.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)', fontSize: 12 }}>
-                    Nenhum feriado cadastrado para este ano.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
-                    {holidays.map(h => (
-                      <div
-                        key={h.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: 12,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 700, color: '#a78bfa' }}>
-                            {formatDate(h.date + 'T00:00:00')}
-                          </span>
-                          <span style={{ color: 'var(--text-primary)' }}>{h.name}</span>
-                          {h.isNational && (
-                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}>
-                              Nacional
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          className="icon-btn danger"
-                          onClick={() => handleDeleteHoliday(h.id)}
-                          title="Excluir feriado"
-                          style={{ width: 28, height: 28 }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
-
-            {/* Modal Footer */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowHolidaysModal(false)}
-              >
-                Concluir
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </BottomSheetModal>
     </div>
   );
 }

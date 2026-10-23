@@ -6,8 +6,11 @@ import { formatCurrency, formatMinutes, formatDate, MONTH_NAMES } from '../utils
 import { getCurrentCycle, getCyclePeriodStr, getCycleRange, formatDateIso } from '../utils/cycle';
 import MonthCalendar from '../components/MonthCalendar';
 import DayPunchesPanel from '../components/DayPunchesPanel';
+import { BottomSheetModal, useFeedback } from '../components/FeedbackProvider';
 
 export default function Dashboard() {
+  const { toast } = useFeedback();
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,9 +23,10 @@ export default function Dashboard() {
   const todayIso = formatDateIso(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedDay, setSelectedDay] = useState<WorkDay | null>(null);
-  
+  const [mobilePunchesOpen, setMobilePunchesOpen] = useState(false);
+
   const [currentMonth, setCurrentMonth] = useState(() => getCurrentCycle());
-  
+
   const [manualDate, setManualDate] = useState(todayIso);
   const [manualTime, setManualTime] = useState('');
   const [savingManual, setSavingManual] = useState(false);
@@ -60,11 +64,11 @@ export default function Dashboard() {
       setGmailStatus(g);
       setMonthRecords(recs);
       setHolidays(hols);
-      
+
       const year = d.monthSummary?.year ?? currentMonth.year;
       const month = d.monthSummary?.month ?? currentMonth.month;
       const h = await workDayApi.getByMonth(year, month, uid);
-      
+
       // Ciclo financeiro do dia 21 ao dia 20 do mês seguinte
       const { startDate: cycleStart, endDate: cycleEnd } = getCycleRange(year, month, 21);
       const cycleStartStr = formatDateIso(cycleStart);
@@ -140,31 +144,35 @@ export default function Dashboard() {
 
   const handleSync = async () => {
     if (gmailStatus?.status !== 'CONECTADO') {
-      return alert('Conecte o Gmail no seu Perfil antes de sincronizar.');
+      toast.info('Conecte o Gmail no seu Perfil antes de sincronizar.');
+      return;
     }
     setSyncing(true);
     try {
       const r = await gmailApi.sync();
       if (r.processed > 0) await load();
-      alert(`Sincronizados ${r.processed} e-mail(s).`);
+      toast.success(`Sincronizados ${r.processed} e-mail(s).`);
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.message || e.message}`);
+      toast.error(`Erro: ${e.response?.data?.message || e.message}`);
     } finally {
       setSyncing(false);
     }
   };
 
   const handleManualPunch = async () => {
-    if (!manualTime) return alert('Selecione um horário!');
+    if (!manualTime) {
+      toast.error('Selecione um horário!');
+      return;
+    }
     setSavingManual(true);
     try {
       const timestamp = `${manualDate}T${manualTime}:00`;
       await timeRecordApi.addManual(timestamp, selectedUserId ?? currentUser?.id);
-      alert('Ponto registrado com sucesso!');
+      toast.success('Ponto registrado com sucesso!');
       await load();
       setManualTime('');
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.error || e.message}`);
+      toast.error(`Erro: ${e.response?.data?.error || e.message}`);
     } finally {
       setSavingManual(false);
     }
@@ -192,6 +200,23 @@ export default function Dashboard() {
   const handleSelectCalendarDate = (dateStr: string, workDay: WorkDay | null) => {
     setSelectedDate(dateStr);
     setSelectedDay(workDay);
+    if (window.innerWidth < 1100) {
+      setMobilePunchesOpen(true);
+    }
+  };
+
+  const curHol = holidays.find(h => h.date === selectedDate);
+  const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
+  const holName = selectedDay?.holidayName || curHol?.name;
+  const uid = selectedUserId ?? currentUser?.id;
+
+  const handleToggleDayHoliday = async (date: string, isHoliday: boolean, name?: string) => {
+    if (isHoliday) {
+      await holidayApi.create({ date, name: name || 'Feriado' }, uid);
+    } else {
+      await holidayApi.deleteByDate(date, uid);
+    }
+    await load();
   };
 
   return (
@@ -204,16 +229,16 @@ export default function Dashboard() {
             <span className="dash-subtitle">{getCycleDatesStr()}</span>
           </div>
           <button id="btn-sync-gmail" className="btn btn-secondary btn-sm btn-sync-pill" onClick={handleSync} disabled={syncing}>
-            <RefreshCw size={13} className={syncing ? 'spin' : ''} />
+            <RefreshCw size={14} className={syncing ? 'spin' : ''} />
             <span>{syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
           </button>
         </div>
 
         {currentUser?.role === 'ADMIN' && users.length > 0 && (
           <div className="admin-collaborator-bar">
-            <span className="admin-collab-label">
+            <label htmlFor="select-employee-dashboard" className="admin-collab-label">
               👤 Colaborador:
-            </span>
+            </label>
             <select
               id="select-employee-dashboard"
               value={selectedUserId ?? currentUser.id ?? ''}
@@ -234,27 +259,27 @@ export default function Dashboard() {
 
         <div className="dash-month-selector">
           <button type="button" className="btn btn-secondary btn-icon" aria-label="Ciclo anterior" onClick={() => setCurrentMonth(prev => prev.month === 1 ? { year: prev.year - 1, month: 12 } : { ...prev, month: prev.month - 1 })}>
-            <ChevronLeft size={16} />
+            <ChevronLeft size={18} />
           </button>
           <div className="dash-month-label">
             <span className="month-name">{MONTH_NAMES[currentMonth.month - 1]} {currentMonth.year}</span>
             <small>Ciclo: {getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}</small>
           </div>
           <button type="button" className="btn btn-secondary btn-icon" aria-label="Próximo ciclo" onClick={() => setCurrentMonth(prev => prev.month === 12 ? { year: prev.year + 1, month: 1 } : { ...prev, month: prev.month + 1 })}>
-            <ChevronRight size={16} />
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
       {/* Gmail Banner */}
       {gmailStatus && (gmailStatus.status === 'DESCONECTADO' || gmailStatus.status === 'EXPIRED') && (
-        <a href="/perfil" style={{ textDecoration: 'none' }}>
-          <div style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: '12px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <a href="/perfil" className="gmail-alert-link">
+          <div className="gmail-alert-banner">
+            <div className="gmail-alert-left">
               <AlertCircle size={18} />
-              <strong style={{ fontSize: 13 }}>{gmailStatus.status === 'EXPIRED' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</strong>
+              <span>{gmailStatus.status === 'EXPIRED' ? 'Token do Gmail expirado' : 'Gmail desconectado'}</span>
             </div>
-            <span style={{ fontSize: '13px', fontWeight: 600, textDecoration: 'underline' }}>Reconectar agora</span>
+            <span className="gmail-alert-cta">Reconectar agora</span>
           </div>
         </a>
       )}
@@ -275,11 +300,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Ribbon de Métricas Secundárias (3 colunas compactas) */}
+      {/* Ribbon de Métricas Secundárias (2+1 no celular, 3 colunas em 480px+) */}
       <div className="dash-metrics-strip">
         <div className="dash-metric-card purple">
           <div className="metric-head">
-            <Clock size={13} />
+            <Clock size={14} />
             <span>Extras (Mês)</span>
           </div>
           <div className="metric-val">{formatMinutes(totalOvertime)}</div>
@@ -288,7 +313,7 @@ export default function Dashboard() {
 
         <div className="dash-metric-card blue">
           <div className="metric-head">
-            <TrendingUp size={13} />
+            <TrendingUp size={14} />
             <span>Extras Hoje</span>
           </div>
           <div className="metric-val">{formatMinutes(overtimeToday)}</div>
@@ -297,7 +322,7 @@ export default function Dashboard() {
 
         <div className="dash-metric-card amber">
           <div className="metric-head">
-            <Wallet size={13} />
+            <Wallet size={14} />
             <span>Despesas</span>
           </div>
           <div className="metric-val">{formatCurrency(s?.totalExpenses ?? 0)}</div>
@@ -356,7 +381,7 @@ export default function Dashboard() {
               {/* Sábado */}
               <div className="schedule-block">
                 <div className="schedule-block-head">
-                  <strong style={{ color: '#fbbf24' }}>Sábado (4h)</strong>
+                  <strong className="text-amber">Sábado (4h)</strong>
                   <span className="badge-tag green">Trabalho / Folga</span>
                 </div>
                 <div className="schedule-block-time">08:00 às 12:00</div>
@@ -367,9 +392,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* SEÇÃO PRINCIPAL: Calendário do Mês + Painel de Batidas (com Edição de Pontos) */}
+      {/* SEÇÃO PRINCIPAL: Calendário do Mês + Painel de Batidas (Lateral no Desktop, Bottom Sheet abaixo de 1100px) */}
       <div className="grid-2">
-        {/* Painel Esquerdo: Calendário Mensal com status verde e vermelho */}
         <div className="card">
           <div className="section-title">
             <span className="dot" />Calendário — Ciclo {getCyclePeriodStr(currentMonth.year, currentMonth.month, 21)}
@@ -383,95 +407,111 @@ export default function Dashboard() {
             selectedDate={selectedDate}
             onSelectDate={handleSelectCalendarDate}
           />
+          <div className="mobile-calendar-hint">
+            <span>Toque em um dia para ver ou editar batidas</span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setMobilePunchesOpen(true)}
+            >
+              Ver {formatDate(selectedDate + 'T00:00:00')}
+            </button>
+          </div>
         </div>
 
-        {/* Painel Direito: Batidas do Dia Selecionado com Edição, Exclusão e Nova Batida */}
-        <div className="card">
-          {(() => {
-            const curHol = holidays.find(h => h.date === selectedDate);
-            const isHol = !!curHol || selectedDay?.status === 'HOLIDAY';
-            const holName = selectedDay?.holidayName || curHol?.name;
-            const uid = selectedUserId ?? currentUser?.id;
-            return (
-              <DayPunchesPanel
-                selectedDate={selectedDate}
-                workDay={selectedDay}
-                records={monthRecords}
-                isHoliday={isHol}
-                holidayName={holName}
-                targetUserId={uid}
-                onToggleHoliday={async (date, isHoliday, name) => {
-                  if (isHoliday) {
-                    await holidayApi.create({ date, name: name || 'Feriado' }, uid);
-                  } else {
-                    await holidayApi.deleteByDate(date, uid);
-                  }
-                  await load();
-                }}
-                onRefresh={load}
-              />
-            );
-          })()}
+        {/* Painel Direito (Desktop >= 1100px) */}
+        <div className="card desktop-punches-card">
+          <DayPunchesPanel
+            selectedDate={selectedDate}
+            workDay={selectedDay}
+            records={monthRecords}
+            isHoliday={isHol}
+            holidayName={holName}
+            targetUserId={uid}
+            onToggleHoliday={handleToggleDayHoliday}
+            onRefresh={load}
+          />
         </div>
       </div>
 
+      {/* Bottom Sheet de Batidas do Dia (Celular e Tablet < 1100px) */}
+      <BottomSheetModal
+        isOpen={mobilePunchesOpen}
+        onClose={() => setMobilePunchesOpen(false)}
+        title={`Batidas — ${formatDate(selectedDate + 'T00:00:00')}`}
+        icon={<Clock size={18} className="text-green" />}
+        overlayClassName="sheet-below-1100"
+      >
+        <DayPunchesPanel
+          selectedDate={selectedDate}
+          workDay={selectedDay}
+          records={monthRecords}
+          isHoliday={isHol}
+          holidayName={holName}
+          targetUserId={uid}
+          hideHeaderTitle
+          onToggleHoliday={handleToggleDayHoliday}
+          onRefresh={load}
+        />
+      </BottomSheetModal>
+
       {/* SEÇÃO INFERIOR: Resumo Financeiro + Lançamento Manual Rápido */}
-      <div className="grid-2" style={{ marginTop: 24 }}>
+      <div className="grid-2" style={{ marginTop: 18 }}>
         {/* Resumo financeiro */}
         <div className="card">
           <div className="section-title"><span className="dot" />Resumo do Mês</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Salário Base</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{formatCurrency(s?.baseSalary ?? 0)}</span>
+          <div className="summary-list">
+            <div className="summary-row">
+              <span className="summary-row-label">Salário Base</span>
+              <span className="summary-row-val">{formatCurrency(s?.baseSalary ?? 0)}</span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
+            <div className="summary-row">
               <div>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Horas Extras do Mês</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Horas além da escala contratual diária</div>
+                <div className="summary-row-label">Horas Extras do Mês</div>
+                <div className="summary-row-sub">Horas além da escala contratual diária</div>
               </div>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-green)' }}>
+              <span className="summary-row-val text-green">
                 +{formatMinutes(totalOvertime)} ({formatCurrency(s?.overtimePay ?? 0)})
               </span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', background: 'rgba(16, 185, 129, 0.04)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6, flexWrap: 'wrap', gap: 6 }}>
+            <div className="summary-row highlight-green">
               <div>
-                <div style={{ fontSize: 14, color: 'var(--accent-green)' }}>Compensação Sábados de Folga</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>2 sábados de folga compensados na jornada de Seg–Qui</div>
+                <div className="summary-row-label text-green">Compensação Sábados de Folga</div>
+                <div className="summary-row-sub">2 sábados de folga compensados na jornada de Seg–Qui</div>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-green)' }}>
+              <span className="summary-row-val text-green" style={{ fontSize: 13 }}>
                 Quitado (Escala)
               </span>
             </div>
 
             {s?.requiredSaturdays != null && s.requiredSaturdays > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Sábados Cumpridos</span>
-                <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', color: (s?.missingSaturdays ?? 0) === 0 ? 'var(--accent-green)' : 'var(--accent-amber)' }}>
+              <div className="summary-row">
+                <span className="summary-row-label">Sábados Cumpridos</span>
+                <span className={`summary-row-val ${(s?.missingSaturdays ?? 0) === 0 ? 'text-green' : 'text-amber'}`} style={{ fontSize: 13 }}>
                   {s.workedSaturdays ?? 0}/{s.requiredSaturdays} obrigatórios ({s.totalSaturdays ?? 4} no mês)
                 </span>
               </div>
             )}
 
             {(s?.missingSaturdays ?? 0) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: 4, margin: '0 -4px', paddingLeft: 6, paddingRight: 6, flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Faltas (Sábados)</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent-red)' }}>
+              <div className="summary-row highlight-red">
+                <span className="summary-row-label">Faltas (Sábados)</span>
+                <span className="summary-row-val text-danger" style={{ fontSize: 13 }}>
                   −{(s?.missingSaturdays ?? 0)} sábado(s) = −{(s?.missingSaturdays ?? 0) * 4}h
                 </span>
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 6 }}>
-              <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Despesas Fixas</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent-red)' }}>−{formatCurrency(s?.totalExpenses ?? 0)}</span>
+            <div className="summary-row">
+              <span className="summary-row-label">Despesas Fixas</span>
+              <span className="summary-row-val text-danger">−{formatCurrency(s?.totalExpenses ?? 0)}</span>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', flexWrap: 'wrap', gap: 6 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Saldo Final Projetado</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--accent-green)' }}>{formatCurrency(s?.finalBalance ?? 0)}</span>
+            <div className="summary-row">
+              <strong style={{ fontSize: 15 }}>Saldo Final Projetado</strong>
+              <span className="summary-row-val big">{formatCurrency(s?.finalBalance ?? 0)}</span>
             </div>
           </div>
         </div>
@@ -479,22 +519,27 @@ export default function Dashboard() {
         {/* Lançamento Manual Avulso */}
         <div className="card">
           <div className="section-title"><span className="dot" />Lançamento Manual Rápido</div>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 15 }}>
-            Registre entradas ou saídas manuais diretamente em qualquer data. Você também pode clicar no dia desejado no calendário acima para editar ou excluir batidas existentes.
+          <p className="text-secondary" style={{ fontSize: 13, marginBottom: 14 }}>
+            Registre entradas ou saídas manuais diretamente em qualquer data, ou toque em um dia no calendário acima para editar batidas existentes.
           </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 120px', minWidth: 0 }}>
+          <div className="form-row-2" style={{ marginBottom: 12 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Data</label>
               <input type="date" className="form-input" value={manualDate} onChange={e => setManualDate(e.target.value)} />
             </div>
-            <div className="form-group" style={{ marginBottom: 0, flex: '1 1 100px', minWidth: 0 }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Horário</label>
               <input type="time" className="form-input" value={manualTime} onChange={e => setManualTime(e.target.value)} />
             </div>
-            <button className="btn btn-primary" style={{ flex: '1 1 100%' }} onClick={handleManualPunch} disabled={savingManual || !manualTime || !manualDate}>
-              {savingManual ? 'Salvando...' : 'Registrar Ponto'}
-            </button>
           </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            onClick={handleManualPunch}
+            disabled={savingManual || !manualTime || !manualDate}
+          >
+            {savingManual ? 'Salvando...' : 'Registrar Ponto'}
+          </button>
         </div>
       </div>
     </div>

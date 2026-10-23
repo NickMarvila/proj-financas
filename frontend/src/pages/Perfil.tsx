@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Mail, CheckCircle, AlertTriangle, XCircle, LogOut, Calendar, User, Key, Clock, ExternalLink, Copy, Check } from 'lucide-react';
 import { gmailApi, profileApi } from '../api/client';
 import { GmailStatus } from '../types';
 import { WorkScheduleEditor } from '../components/WorkScheduleEditor';
+import { useFeedback } from '../components/FeedbackProvider';
 
 export default function Perfil() {
+  const { toast, confirm } = useFeedback();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<GmailStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,13 +20,13 @@ export default function Perfil() {
 
   const [profile, setProfile] = useState<any>(null);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ 
+  const [profileForm, setProfileForm] = useState({
     employeeName: '', cpf: '', whatsappPhone: '',
-    workMonday: '', workTuesday: '', workWednesday: '', workThursday: '', 
+    workMonday: '', workTuesday: '', workWednesday: '', workThursday: '',
     workFriday: '', workSaturday: '', workSunday: '',
     monthlyHoursGoal: 220, firstDayOfWeek: 'MONDAY', firstDayOfMonth: 21
   });
-  
+
   const [savingPwd, setSavingPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '' });
 
@@ -35,9 +37,9 @@ export default function Perfil() {
     try {
       const p = await profileApi.get();
       setProfile(p);
-      setProfileForm({ 
-        employeeName: p.employeeName || '', 
-        cpf: p.cpf || '', 
+      setProfileForm({
+        employeeName: p.employeeName || '',
+        cpf: p.cpf || '',
         whatsappPhone: p.whatsappPhone || '',
         workMonday: p.workMonday || '',
         workTuesday: p.workTuesday || '',
@@ -50,7 +52,7 @@ export default function Perfil() {
         firstDayOfWeek: p.firstDayOfWeek || 'MONDAY',
         firstDayOfMonth: p.firstDayOfMonth || 21
       });
-    } catch(e) {}
+    } catch (e) {}
     gmailApi.getStatus().then(setStatus).finally(() => setLoading(false));
   };
 
@@ -62,24 +64,27 @@ export default function Perfil() {
     setSavingProfile(true);
     try {
       await profileApi.update(profileForm);
-      alert('Perfil atualizado com sucesso!');
+      toast.success('Perfil atualizado com sucesso!');
       await loadStatus();
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.message || 'Falha ao atualizar perfil'}`);
+      toast.error(`Erro: ${e.response?.data?.message || 'Falha ao atualizar perfil'}`);
     } finally {
       setSavingProfile(false);
     }
   };
 
   const handleSavePassword = async () => {
-    if (!pwdForm.currentPassword || !pwdForm.newPassword) return alert('Preencha as senhas');
+    if (!pwdForm.currentPassword || !pwdForm.newPassword) {
+      toast.error('Preencha a senha atual e a nova senha.');
+      return;
+    }
     setSavingPwd(true);
     try {
       await profileApi.updatePassword(pwdForm);
-      alert('Senha atualizada com sucesso!');
+      toast.success('Senha atualizada com sucesso!');
       setPwdForm({ currentPassword: '', newPassword: '' });
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.message || 'Falha ao atualizar senha'}`);
+      toast.error(`Erro: ${e.response?.data?.message || 'Falha ao atualizar senha'}`);
     } finally {
       setSavingPwd(false);
     }
@@ -90,18 +95,25 @@ export default function Perfil() {
       const { authUrl } = await gmailApi.connect(syncFromDate);
       window.location.href = authUrl;
     } catch (e: any) {
-      alert(e.response?.data?.error || 'Erro ao obter URL de autenticação');
+      toast.error(e.response?.data?.error || 'Erro ao obter URL de autenticação');
     }
   };
 
   const handleDisconnect = async () => {
-    if (window.confirm('Tem certeza que deseja desconectar o Gmail? O sistema não lerá mais seus comprovantes de ponto automaticamente.')) {
-      try {
-        await gmailApi.disconnect();
-        loadStatus();
-      } catch (e) {
-        alert('Erro ao desconectar');
-      }
+    const ok = await confirm({
+      title: 'Desconectar Gmail',
+      message: 'Tem certeza que deseja desconectar o Gmail? O sistema não lerá mais seus comprovantes de ponto automaticamente.',
+      confirmLabel: 'Desconectar',
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await gmailApi.disconnect();
+      toast.info('Gmail desconectado.');
+      loadStatus();
+    } catch (e) {
+      toast.error('Erro ao desconectar o Gmail.');
     }
   };
 
@@ -110,10 +122,10 @@ export default function Perfil() {
     setSyncing(true);
     try {
       const res = await gmailApi.sync();
-      alert(`${res.processed} batidas processadas.`);
+      toast.success(`${res.processed} batida(s) processada(s).`);
       loadStatus();
     } catch (e: any) {
-      alert(`Erro: ${e.response?.data?.message || 'Falha ao sincronizar'}`);
+      toast.error(`Erro: ${e.response?.data?.message || 'Falha ao sincronizar'}`);
     } finally {
       setSyncing(false);
     }
@@ -121,34 +133,37 @@ export default function Perfil() {
 
   return (
     <div className="perfil-container fade-in">
-      <h1 className="page-title">Meu Perfil</h1>
-      <p className="page-subtitle" style={{ marginBottom: 32 }}>
-        Gerencie sua conexão com o Gmail e dados pessoais.
-      </p>
+      <div className="page-header">
+        <h1 className="page-title">Meu Perfil</h1>
+        <p className="page-subtitle">
+          Gerencie sua conexão com o Gmail, jornada e dados pessoais.
+        </p>
+      </div>
 
       {gmailResult === 'ok' && (
-        <div className="alert" style={{ backgroundColor: 'var(--accent-green-dim)', color: 'var(--accent-green)', padding: 16, borderRadius: 8, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CheckCircle size={24} />
-          <strong>Gmail conectado com sucesso!</strong>
+        <div className="punches-status-banner compensated" style={{ marginBottom: 18 }}>
+          <div className="text-green" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CheckCircle size={22} />
+            <strong>Gmail conectado com sucesso!</strong>
+          </div>
         </div>
       )}
       {gmailResult === 'erro' && (
-        <div className="alert" style={{ backgroundColor: 'var(--accent-red-dim)', color: 'var(--accent-red)', padding: 16, borderRadius: 8, marginBottom: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <XCircle size={24} />
+        <div className="punches-status-banner incomplete" style={{ marginBottom: 18, flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div className="text-danger" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <XCircle size={22} />
             <div>
               <strong>Erro ao conectar Gmail:</strong> {gmailError}
             </div>
           </div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, paddingLeft: 36 }}>
+          <div className="text-secondary" style={{ fontSize: 13, lineHeight: 1.55 }}>
             Se o Google bloqueou dizendo <em>"Acesso bloqueado: o app não concluiu a verificação"</em> ou <em>"access_denied"</em>, é necessário incluir o e-mail na lista de <strong>Usuários de Teste</strong> no painel do Google Cloud.
-            <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 10 }}>
               <a
                 href={`https://console.cloud.google.com/apis/credentials/consent?project=${status?.projectId || 'financasponto'}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-secondary"
-                style={{ fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                className="btn btn-secondary btn-sm btn-responsive"
               >
                 <ExternalLink size={14} /> Abrir Google Cloud para Liberar este E-mail
               </a>
@@ -157,16 +172,16 @@ export default function Perfil() {
         </div>
       )}
 
-      <div className="card glass-card" style={{ marginBottom: 24 }}>
+      <div className="card glass-card" style={{ marginBottom: 18 }}>
         {profile && (
-          <div style={{ padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
-              <div style={{ background: 'var(--accent-blue-dim)', padding: 12, borderRadius: '50%', color: 'var(--accent-blue)' }}>
-                <User size={24} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
+              <div style={{ background: 'var(--accent-blue-dim)', padding: 10, borderRadius: '50%', color: 'var(--accent-blue)', flexShrink: 0 }}>
+                <User size={22} />
               </div>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Dados Pessoais</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Dados Pessoais</h2>
+                <p className="text-secondary" style={{ fontSize: 13, marginTop: 2 }}>
                   Atualize suas informações de identificação no sistema.
                 </p>
               </div>
@@ -190,23 +205,23 @@ export default function Perfil() {
                 <input className="form-input" value={profileForm.whatsappPhone} onChange={e => setProfileForm({ ...profileForm, whatsappPhone: e.target.value })} />
               </div>
             </div>
-            <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
+            <button type="button" className="btn btn-primary btn-responsive" onClick={handleSaveProfile} disabled={savingProfile}>
               {savingProfile ? 'Salvando...' : 'Salvar Dados Pessoais'}
             </button>
           </div>
         )}
       </div>
 
-      <div className="card glass-card" style={{ marginBottom: 24 }}>
+      <div className="card glass-card" style={{ marginBottom: 18 }}>
         {profile && (
-          <div style={{ padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
-              <div style={{ background: 'var(--accent-green-dim)', padding: 12, borderRadius: '50%', color: 'var(--accent-green)' }}>
-                <Clock size={24} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
+              <div style={{ background: 'var(--accent-green-dim)', padding: 10, borderRadius: '50%', color: 'var(--accent-green)', flexShrink: 0 }}>
+                <Clock size={22} />
               </div>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Jornada de Trabalho</h2>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Jornada de Trabalho</h2>
+                <p className="text-secondary" style={{ fontSize: 13, marginTop: 2 }}>
                   Configure seu expediente e metas para cálculo de horas.
                 </p>
               </div>
@@ -218,11 +233,11 @@ export default function Perfil() {
               onChange={(updated) => setProfileForm((prev) => ({ ...prev, ...updated }))}
             />
 
-            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 16 }}>
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <h3 className="text-secondary" style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>
                 Parâmetros Gerais de Ponto e Folha
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+              <div className="grid-3">
                 <div className="form-group">
                   <label className="form-label">Meta Mensal (horas)</label>
                   <input
@@ -240,7 +255,7 @@ export default function Perfil() {
                 <div className="form-group">
                   <label className="form-label">Primeiro dia da Semana</label>
                   <select
-                    className="form-input"
+                    className="form-select"
                     value={profileForm.firstDayOfWeek}
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, firstDayOfWeek: e.target.value })
@@ -269,8 +284,8 @@ export default function Perfil() {
               </div>
             </div>
 
-            <div style={{ marginTop: 24 }}>
-              <button className="btn btn-primary" onClick={handleSaveProfile} disabled={savingProfile}>
+            <div style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-primary btn-responsive" onClick={handleSaveProfile} disabled={savingProfile}>
                 {savingProfile ? 'Salvando...' : 'Salvar Jornada'}
               </button>
             </div>
@@ -278,15 +293,15 @@ export default function Perfil() {
         )}
       </div>
 
-      <div className="card glass-card" style={{ marginBottom: 24 }}>
+      <div className="card glass-card" style={{ marginBottom: 18 }}>
         {profile && (
-          <div style={{ padding: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
-              <div style={{ background: 'var(--accent-amber-dim)', padding: 12, borderRadius: '50%', color: 'var(--accent-amber)' }}>
-                <Key size={24} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
+              <div style={{ background: 'var(--accent-amber-dim)', padding: 10, borderRadius: '50%', color: 'var(--accent-amber)', flexShrink: 0 }}>
+                <Key size={22} />
               </div>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Trocar Senha</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 700 }}>Trocar Senha</h2>
               </div>
             </div>
 
@@ -300,7 +315,7 @@ export default function Perfil() {
                 <input type="password" className="form-input" value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} />
               </div>
             </div>
-            <button className="btn btn-secondary" onClick={handleSavePassword} disabled={savingPwd}>
+            <button type="button" className="btn btn-secondary btn-responsive" onClick={handleSavePassword} disabled={savingPwd}>
               {savingPwd ? 'Atualizando...' : 'Atualizar Senha'}
             </button>
           </div>
@@ -308,24 +323,24 @@ export default function Perfil() {
       </div>
 
       <div className="card glass-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 16 }}>
-          <div style={{ background: 'var(--accent-purple-dim)', padding: 12, borderRadius: '50%', color: 'var(--accent-purple)' }}>
-            <Mail size={24} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
+          <div style={{ background: 'var(--accent-purple-dim)', padding: 10, borderRadius: '50%', color: 'var(--accent-purple)', flexShrink: 0 }}>
+            <Mail size={22} />
           </div>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>Sincronização do Gmail</h2>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700 }}>Sincronização do Gmail</h2>
+            <p className="text-secondary" style={{ fontSize: 13, marginTop: 2 }}>
               Conecte sua conta para que o sistema leia os comprovantes da pmovel.
             </p>
           </div>
         </div>
 
         {loading ? (
-          <p>Carregando...</p>
+          <p className="text-secondary">Carregando...</p>
         ) : (
-          <div style={{ padding: 8 }}>
+          <div>
             {!status?.hasCredentials && (
-              <div style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber)', padding: 16, borderRadius: 8, display: 'flex', gap: 12 }}>
+              <div className="punches-status-banner" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber)' }}>
                 <AlertTriangle size={20} />
                 <p style={{ fontSize: 14 }}>O administrador não configurou as credenciais do Google. A conexão não está disponível.</p>
               </div>
@@ -333,12 +348,12 @@ export default function Perfil() {
 
             {status?.hasCredentials && status.status === 'DESCONECTADO' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <XCircle size={20} color="var(--accent-red)" />
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Desconectado</span>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <XCircle size={20} className="text-danger" />
+                  <strong>Desconectado</strong>
                 </div>
-                
-                <div className="form-group" style={{ maxWidth: 300, marginBottom: 0 }}>
+
+                <div className="form-group" style={{ maxWidth: 320, marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <Calendar size={14} /> Sincronizar e-mails a partir de
                   </label>
@@ -348,12 +363,12 @@ export default function Perfil() {
                     value={syncFromDate}
                     onChange={e => setSyncFromDate(e.target.value)}
                   />
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+                  <p className="text-secondary" style={{ fontSize: 12, marginTop: 8 }}>
                     Ao conectar, o sistema lerá apenas e-mails recebidos após essa data.
                   </p>
                 </div>
 
-                <button className="btn btn-primary" onClick={handleConnect} style={{ width: 'fit-content' }}>
+                <button type="button" className="btn btn-primary btn-responsive" onClick={handleConnect}>
                   Conectar Gmail
                 </button>
               </div>
@@ -361,95 +376,84 @@ export default function Perfil() {
 
             {status?.hasCredentials && (status.status === 'CONECTADO' || status.status === 'EXPIRED') && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   {status.status === 'CONECTADO' ? (
-                    <CheckCircle size={20} color="var(--accent-green)" />
+                    <CheckCircle size={20} className="text-green" />
                   ) : (
-                    <AlertTriangle size={20} color="var(--accent-amber)" />
+                    <AlertTriangle size={20} className="text-amber" />
                   )}
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <strong>
                     {status.status === 'CONECTADO' ? 'Conectado' : 'Token Expirado (Reconecte)'}
-                  </span>
+                  </strong>
                 </div>
 
                 <div className="kv-grid">
-                  <span style={{ color: 'var(--text-secondary)' }}>E-mail:</span>
-                  <strong style={{ color: 'var(--text-primary)' }}>{status.email}</strong>
+                  <span className="text-secondary">E-mail:</span>
+                  <strong>{status.email}</strong>
 
-                  <span style={{ color: 'var(--text-secondary)' }}>Sincronizando desde:</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{status.syncFrom?.split('-').reverse().join('/') || 'Não configurado'}</span>
+                  <span className="text-secondary">Sincronizando desde:</span>
+                  <span>{status.syncFrom?.split('-').reverse().join('/') || 'Não configurado'}</span>
 
-                  <span style={{ color: 'var(--text-secondary)' }}>Último sync:</span>
-                  <span style={{ color: 'var(--text-primary)' }}>
+                  <span className="text-secondary">Último sync:</span>
+                  <span>
                     {status.lastSync ? new Date(status.lastSync).toLocaleString('pt-BR') : 'Nunca'}
                   </span>
                 </div>
 
                 {status.status === 'CONECTADO' && (
-                  <button className="btn btn-secondary" onClick={handleSyncNow} disabled={syncing} style={{ width: 'fit-content', marginTop: 8 }}>
+                  <button type="button" className="btn btn-secondary btn-responsive" onClick={handleSyncNow} disabled={syncing}>
                     {syncing ? 'Sincronizando...' : '🔄 Sincronizar Novos E-mails Agora'}
                   </button>
                 )}
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {status.status === 'EXPIRED' && (
-                    <button className="btn btn-primary" onClick={handleConnect}>
+                    <button type="button" className="btn btn-primary btn-responsive" onClick={handleConnect}>
                       Reconectar Gmail
                     </button>
                   )}
-                  <button className="btn btn-danger" onClick={handleDisconnect} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button type="button" className="btn btn-danger btn-responsive" onClick={handleDisconnect}>
                     <LogOut size={16} /> Desconectar
                   </button>
                 </div>
 
-                {/* Box de Ajuda / Acesso ao Google Cloud */}
                 {(() => {
                   const googleUrl = `https://console.cloud.google.com/apis/credentials/consent?project=${status?.projectId || 'financasponto'}`;
                   return (
-                    <div style={{
-                      marginTop: 20,
-                      padding: '14px 16px',
-                      background: 'rgba(59, 130, 246, 0.08)',
-                      border: '1px solid rgba(59, 130, 246, 0.25)',
-                      borderRadius: 'var(--radius-md)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 10
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    <div className="holiday-import-box" style={{ background: 'rgba(59, 130, 246, 0.08)', borderColor: 'rgba(59, 130, 246, 0.25)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, width: '100%' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <ExternalLink size={16} color="#60a5fa" />
-                          <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+                          <ExternalLink size={16} className="text-blue" />
+                          <strong style={{ fontSize: 13 }}>
                             Painel Google Cloud (Adicionar E-mails de Teste)
                           </strong>
                         </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                           <button
                             type="button"
-                            className="btn btn-secondary"
+                            className="btn btn-secondary btn-sm"
                             onClick={() => {
                               navigator.clipboard.writeText(googleUrl);
                               setCopiedLink(true);
+                              toast.info('Link copiado para a área de transferência!');
                               setTimeout(() => setCopiedLink(false), 2000);
                             }}
                             title="Copiar link"
-                            style={{ fontSize: 11, padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                           >
-                            {copiedLink ? <Check size={13} color="var(--accent-green)" /> : <Copy size={13} />}
+                            {copiedLink ? <Check size={14} className="text-green" /> : <Copy size={14} />}
                             {copiedLink ? 'Copiado!' : 'Copiar Link'}
                           </button>
                           <a
                             href={googleUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="btn btn-secondary"
-                            style={{ fontSize: 12, padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                            className="btn btn-secondary btn-sm"
                           >
-                            <ExternalLink size={13} /> Abrir no Google Cloud
+                            <ExternalLink size={14} /> Abrir no Google Cloud
                           </a>
                         </div>
                       </div>
-                      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      <p className="text-secondary" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }}>
                         Para autorizar novos e-mails a sincronizarem sem erro 403, cadastre-os na seção <strong>Usuários de teste (Test users)</strong> do Google Cloud Console.
                       </p>
                     </div>

@@ -30,29 +30,45 @@ export default function Historico() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {summaries.map(s => {
             const isPositive = (s.finalBalance ?? 0) >= 0;
             return (
-              <div key={s.id} className="card" style={{
-                borderLeft: `4px solid ${isPositive ? 'var(--accent-green)' : 'var(--accent-red)'}`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+              <div
+                key={s.id}
+                className="card"
+                style={{
+                  borderLeft: `4px solid ${isPositive ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+                }}
+              >
+                <div className="hist-card-row">
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 18, fontWeight: 800 }}>
                       {MONTH_NAMES[s.month - 1]} {s.year}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="text-secondary" style={{ fontSize: 12, fontWeight: 600, marginTop: 2 }}>
                       Ciclo: {getCyclePeriodStr(s.year, s.month, 21)}
                     </div>
                   </div>
                   <div className="hist-cells">
                     <Cell label="Salário" value={formatCurrency(s.baseSalary)} />
-                    <Cell label="Extras" value={`${formatMinutes(s.totalOvertimeMinutes)}`}
-                      sub={formatCurrency(s.overtimePay)} color="var(--accent-purple-light)" />
-                    <Cell label="Despesas" value={formatCurrency(s.totalExpenses)} color="var(--accent-red)" />
-                    <Cell label="Saldo Final" value={formatCurrency(s.finalBalance)}
-                      color={isPositive ? 'var(--accent-green)' : 'var(--accent-red)'} big />
+                    <Cell
+                      label="Extras"
+                      value={`${formatMinutes(s.totalOvertimeMinutes)}`}
+                      sub={formatCurrency(s.overtimePay)}
+                      toneClass="text-purple"
+                    />
+                    <Cell
+                      label="Despesas"
+                      value={formatCurrency(s.totalExpenses)}
+                      toneClass="text-danger"
+                    />
+                    <Cell
+                      label="Saldo Final"
+                      value={formatCurrency(s.finalBalance)}
+                      toneClass={isPositive ? 'text-green' : 'text-danger'}
+                      big
+                    />
                   </div>
                 </div>
               </div>
@@ -64,14 +80,26 @@ export default function Historico() {
   );
 }
 
-function Cell({ label, value, sub, color, big }: {
-  label: string; value: string; sub?: string; color?: string; big?: boolean;
+function Cell({
+  label,
+  value,
+  sub,
+  toneClass,
+  big,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  toneClass?: string;
+  big?: boolean;
 }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: big ? 20 : 15, fontWeight: big ? 800 : 700, color: color ?? 'var(--text-primary)' }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{sub}</div>}
+    <div className="hist-cell">
+      <div className="hist-cell-label">{label}</div>
+      <div className={`hist-cell-val${big ? ' big' : ''}${toneClass ? ` ${toneClass}` : ''}`}>
+        {value}
+      </div>
+      {sub && <div className="hist-cell-sub">{sub}</div>}
     </div>
   );
 }

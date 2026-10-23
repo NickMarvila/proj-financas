@@ -11,6 +11,7 @@ import Historico from './pages/Historico';
 import Login from './pages/Login';
 import Perfil from './pages/Perfil';
 import { authApi } from './api/client';
+import { FeedbackProvider } from './components/FeedbackProvider';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -130,40 +131,28 @@ function MainLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 16px' }}>
+        <div className="sidebar-footer">
           {isAdmin && (
             <a
               href="https://console.cloud.google.com/apis/credentials/consent?project=financasponto"
               target="_blank"
               rel="noopener noreferrer"
               title="Adicionar e-mails de teste no Google Cloud Console"
-              style={{
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 12,
-                padding: '6px 8px',
-                minHeight: 44,
-                borderRadius: 6,
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                transition: 'all 0.2s',
-              }}
+              className="sidebar-admin-link"
             >
-              <ExternalLink size={13} color="#60a5fa" />
+              <ExternalLink size={14} />
               <span>Google Cloud (Test Users)</span>
             </a>
           )}
-          <button 
+          <button
+            type="button"
+            className="sidebar-logout-btn"
             onClick={() => {
               localStorage.removeItem('token');
               window.location.href = '/login';
             }}
-            style={{background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding: '6px 8px', minHeight: 44, display: 'flex', alignItems: 'center', gap: 6, fontSize: 14}}
           >
-            <LogOut size={14} /> Sair
+            <LogOut size={16} /> Sair
           </button>
         </div>
       </aside>
@@ -190,15 +179,17 @@ function MainLayout() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/*" element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </BrowserRouter>
+    <FeedbackProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </FeedbackProvider>
   );
 }
