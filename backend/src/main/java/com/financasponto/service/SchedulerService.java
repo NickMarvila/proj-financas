@@ -62,9 +62,13 @@ public class SchedulerService {
                 && workDay.getOvertimeMinutes() > 0
                 && Boolean.FALSE.equals(workDay.getOvertimeNotified())) {
 
-            // Somar total de extras do mês
+            // Somar total de extras do ciclo financeiro atual (ex: 21 a 20)
+            int cutDay = user.getFirstDayOfMonth() != null ? user.getFirstDayOfMonth() : 21;
+            com.financasponto.utils.CycleUtils.Cycle cycle = com.financasponto.utils.CycleUtils.getCurrentCycle(today, cutDay);
+            LocalDate cycleStart = com.financasponto.utils.CycleUtils.getCycleStart(cycle.year, cycle.month, cutDay);
+            LocalDate cycleEnd = com.financasponto.utils.CycleUtils.getCycleEnd(cycle.year, cycle.month, cutDay);
             Integer totalOvertimeMinutes = workDayRepository
-                    .sumOvertimeMinutesByUserIdAndYearAndMonth(user.getId(), today.getYear(), today.getMonthValue());
+                    .sumOvertimeMinutesByUserIdAndDateBetween(user.getId(), cycleStart, cycleEnd);
             BigDecimal totalValue = timeRecordService.calculateOvertimeValue(
                     user.getId(), totalOvertimeMinutes != null ? totalOvertimeMinutes : 0);
 
@@ -93,8 +97,11 @@ public class SchedulerService {
     @Scheduled(cron = "0 0 0 * * *")
     public void recalculateMonthly() {
         LocalDate today = LocalDate.now();
-        forEachUser("recálculo mensal",
-                u -> financeService.recalculateMonthlySummary(u, today.getMonthValue(), today.getYear()));
+        forEachUser("recálculo mensal", u -> {
+            int cutDay = u.getFirstDayOfMonth() != null ? u.getFirstDayOfMonth() : 21;
+            com.financasponto.utils.CycleUtils.Cycle cycle = com.financasponto.utils.CycleUtils.getCurrentCycle(today, cutDay);
+            financeService.recalculateMonthlySummary(u, cycle.month, cycle.year);
+        });
         log.info("Resumo mensal recalculado");
     }
 

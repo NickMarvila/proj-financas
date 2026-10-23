@@ -80,12 +80,26 @@ export const financeApi = {
     api.post<MonthlySummary>(`/monthly-summary/${year}/${month}/recalculate`).then(r => r.data),
 };
 
+export interface WhatsAppStatus {
+  instanceName: string;
+  exists: boolean;
+  state: string;
+  connected: boolean;
+  ownerJid?: string | null;
+  profileName?: string | null;
+  targetPhone?: string | null;
+  base64?: string;
+  error?: string;
+}
+
 export const whatsAppApi = {
-  getStatus: () => api.get<string>('/whatsapp/status').then(r => r.data),
-  createInstance: () => api.post('/whatsapp/instance/create').then(r => r.data),
-  getQrCode: () => api.get<string>('/whatsapp/qrcode').then(r => r.data),
+  getStatus: () => api.get<WhatsAppStatus>('/whatsapp/status').then(r => r.data),
+  createInstance: (reset = false) =>
+    api.post<WhatsAppStatus>(`/whatsapp/instance/create?reset=${reset}`).then(r => r.data),
+  getQrCode: () => api.get<WhatsAppStatus>('/whatsapp/qrcode').then(r => r.data),
+  disconnect: () => api.delete<WhatsAppStatus>('/whatsapp/instance').then(r => r.data),
   sendTest: (message?: string) =>
-    api.post('/whatsapp/test', { message }).then(r => r.data),
+    api.post<{ status: string; phone?: string; error?: string }>('/whatsapp/test', { message }).then(r => r.data),
 };
 
 export const gmailApi = {

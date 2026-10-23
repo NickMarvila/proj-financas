@@ -35,13 +35,15 @@ services:
       DATABASE_PROVIDER: "postgresql"
       DATABASE_CONNECTION_URI: "postgres://${DB_USER:-financas}:${DB_PASSWORD:-financas123}@postgres:5432/${DB_NAME:-financasponto}?schema=evolution"
       REDIS_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
       RABBITMQ_ENABLED: "false"
       WEBHOOK_GLOBAL_ENABLED: "false"
     volumes:
       - evolution_instances:/evolution/instances
       - evolution_store:/evolution/store
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ > /dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

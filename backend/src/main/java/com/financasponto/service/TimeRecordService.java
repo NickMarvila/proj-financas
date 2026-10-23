@@ -71,8 +71,8 @@ public class TimeRecordService {
         // Recalcular o dia de trabalho e a ordenação
         recalculateDayPunches(user, day);
 
-        // Enviar notificação WhatsApp
-        if (!silent) {
+        // Enviar notificação WhatsApp apenas para batidas do dia de hoje (evita flood em sincronizações retroativas)
+        if (!silent && day.equals(LocalDate.now())) {
             whatsAppService.notifyPunchRegistered(user, saved);
         }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { RefreshCw, Send, CheckCircle, XCircle, ExternalLink, Copy, Check, Key, Lock, Eye, EyeOff } from 'lucide-react';
 import { gmailApi, whatsAppApi, authApi } from '../api/client';
+import type { WhatsAppStatus } from '../api/client';
 import type { GmailStatus, UserSummary } from '../types';
 import { BottomSheetModal, useFeedback } from '../components/FeedbackProvider';
 
@@ -8,10 +9,12 @@ export default function Configuracoes() {
   const { toast, confirm } = useFeedback();
 
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
+  const [waStatus, setWaStatus] = useState<WhatsAppStatus | null>(null);
   const [qrCode, setQrCode] = useState<string>('');
   const [testMsg, setTestMsg] = useState('');
   const [sending, setSending] = useState(false);
   const [generatingQr, setGeneratingQr] = useState(false);
+  const [disconnectingWa, setDisconnectingWa] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -43,9 +46,34 @@ export default function Configuracoes() {
       setIsAdmin(u.role === 'ADMIN');
     } catch (e) {}
 
-    const g = await gmailApi.getStatus().catch(() => null);
+    const [g, w] = await Promise.all([
+      gmailApi.getStatus().catch(() => null),
+      whatsAppApi.getStatus().catch(() => null),
+    ]);
     setGmailStatus(g);
+    if (w) {
+      setWaStatus(w);
+      if (w.connected) {
+        setQrCode('');
+      }
+    }
   };
+
+  // Enquanto o QR Code estiver aberto, verifica a cada 3s se o celular já escaneou e conectou
+  useEffect(() => {
+    if (!qrCode || waStatus?.connected) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const w = await whatsAppApi.getStatus();
+        setWaStatus(w);
+        if (w.connected) {
+          setQrCode('');
+          toast.success('WhatsApp conectado com sucesso!');
+        }
+      } catch {}
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [qrCode, waStatus?.connected, toast]);
 
   const loadUsers = async () => {
     try {
@@ -126,32 +154,73 @@ export default function Configuracoes() {
     }
   };
 
-  const createWaInstance = async () => {
+  const createWaInstance = async (reset = false) => {
     setGeneratingQr(true);
     setQrCode('');
     try {
-      await whatsAppApi.createInstance();
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const qr = await whatsAppApi.getQrCode();
-        if (extractQr(qr)) {
-          setQrCode(qr);
-          break;
+      const res = await whatsAppApi.createInstance(reset);
+      setWaStatus(res);
+      if (res.connected) {
+        toast.success('WhatsApp já está conectado!');
+        return;
+      }
+      const initialQr = extractQr(res);
+      if (initialQr) {
+        setQrCode(initialQr);
+        return;
+      }
+      for (let i = 0; i < 6; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const qrRes = await whatsAppApi.getQrCode();
+        setWaStatus(qrRes);
+        if (qrRes.connected) {
+          toast.success('WhatsApp conectado com sucesso!');
+          return;
+        }
+        const extracted = extractQr(qrRes);
+        if (extracted) {
+          setQrCode(extracted);
+          return;
         }
       }
+      toast.error('Não foi possível obter o QR Code. Tente clicar em Reiniciar Sessão.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Erro ao gerar QR Code do WhatsApp.');
     } finally {
       setGeneratingQr(false);
       loadStatus();
     }
   };
 
+  const handleDisconnectWa = async () => {
+    const ok = await confirm({
+      title: 'Desconectar / Reiniciar WhatsApp',
+      message: 'Deseja desconectar a instância atual do WhatsApp para conectar outro aparelho ou gerar um novo QR Code?',
+      confirmLabel: 'Desconectar',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDisconnectingWa(true);
+    try {
+      const res = await whatsAppApi.disconnect();
+      setWaStatus(res);
+      setQrCode('');
+      toast.info('Instância do WhatsApp desconectada.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Erro ao desconectar WhatsApp.');
+    } finally {
+      setDisconnectingWa(false);
+    }
+  };
+
   const sendTest = async () => {
     setSending(true);
     try {
-      await whatsAppApi.sendTest(testMsg || undefined);
-      toast.success('Mensagem de teste enviada!');
-    } catch {
-      toast.error('Falha ao enviar mensagem de teste.');
+      const res = await whatsAppApi.sendTest(testMsg || undefined);
+      toast.success(`Mensagem de teste enviada para ${res.phone || 'seu WhatsApp'}!`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Falha ao enviar mensagem de teste.');
     } finally {
       setSending(false);
     }
@@ -324,33 +393,111 @@ export default function Configuracoes() {
 
             {/* WhatsApp */}
             <div className="card">
-              <div className="section-title"><span className="dot" />WhatsApp (Evolution API)</div>
+              <div className="ponto-card-header" style={{ marginBottom: 14 }}>
+                <div className="section-title" style={{ marginBottom: 0 }}>
+                  <span className="dot" />WhatsApp (Evolution API)
+                </div>
+                <span
+                  className={`badge ${
+                    waStatus?.connected
+                      ? 'badge-green'
+                      : waStatus?.state === 'connecting'
+                      ? 'badge-amber'
+                      : 'badge-red'
+                  }`}
+                >
+                  {waStatus?.connected
+                    ? '● Conectado'
+                    : waStatus?.state === 'connecting'
+                    ? '◐ Aguardando QR'
+                    : '○ Desconectado'}
+                </span>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div className="text-secondary" style={{ padding: 14, background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)', fontSize: 13, lineHeight: 1.6 }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>Setup WhatsApp:</strong><br />
-                  1. Clique em "Criar Instância"<br />
-                  2. Escaneie o QR Code com seu WhatsApp<br />
-                  3. Pronto! Notificações ativadas para <strong className="text-green">+55 24 99985-6230</strong>
+                  {waStatus?.connected ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                        <div>
+                          <strong className="text-green">✅ Sessão Ativa na Evolution API</strong>
+                          <div style={{ marginTop: 4 }}>
+                            Aparelho conectado: <strong>{waStatus.profileName || 'WhatsApp'}</strong>{' '}
+                            {waStatus.ownerJid && <span className="text-green">({waStatus.ownerJid})</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 12 }}>
+                        Cada colaborador com telefone cadastrado no <strong>Meu Perfil</strong> receberá avisos de batida do dia, alerta de hora extra e resumos às 12h e 21h.
+                        {waStatus.targetPhone && (
+                          <> Seu destino de teste atual: <strong className="text-green">+{waStatus.targetPhone}</strong></>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <strong style={{ color: 'var(--text-primary)' }}>Como conectar o WhatsApp central:</strong><br />
+                      1. Toque em <strong>Gerar QR Code / Conectar</strong> abaixo<br />
+                      2. No seu celular, abra o WhatsApp → <strong>Aparelhos conectados</strong> → <strong>Conectar aparelho</strong><br />
+                      3. Escaneie o QR Code na tela (o status mudará para <strong className="text-green">Conectado</strong> automaticamente)
+                    </>
+                  )}
                 </div>
 
-                {qrCode && (
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Escaneie o QR Code:</div>
-                    <div className="qr-container">
-                      <img src={`data:image/png;base64,${extractQr(qrCode)}`} alt="QR Code WhatsApp" />
+                {qrCode && !waStatus?.connected && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                      Escaneie o QR Code abaixo com seu WhatsApp:
                     </div>
+                    <div className="qr-container">
+                      <img src={qrCode} alt="QR Code WhatsApp" />
+                    </div>
+                    <p className="text-secondary" style={{ fontSize: 12, marginTop: 8 }}>
+                      Aguardando leitura no celular... A tela atualizará sozinha assim que conectar.
+                    </p>
                   </div>
                 )}
 
-                <button
-                  id="btn-create-wa-instance"
-                  type="button"
-                  className="btn btn-primary btn-block"
-                  onClick={createWaInstance}
-                  disabled={generatingQr}
-                >
-                  📱 {generatingQr ? 'Gerando QR Code (aguarde...)' : 'Criar Instância / Ver QR Code'}
-                </button>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {!waStatus?.connected && (
+                    <button
+                      id="btn-create-wa-instance"
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: '1 1 200px' }}
+                      onClick={() => createWaInstance(false)}
+                      disabled={generatingQr || disconnectingWa}
+                    >
+                      📱 {generatingQr ? 'Gerando QR Code...' : qrCode ? 'Atualizar QR Code' : 'Gerar QR Code / Conectar'}
+                    </button>
+                  )}
+
+                  {!waStatus?.connected && waStatus?.exists && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ flex: '1 1 160px' }}
+                      onClick={() => createWaInstance(true)}
+                      disabled={generatingQr || disconnectingWa}
+                      title="Apaga a sessão travada e cria um novo QR Code limpo"
+                    >
+                      <RefreshCw size={14} className={generatingQr ? 'spin' : ''} />
+                      Reiniciar Sessão
+                    </button>
+                  )}
+
+                  {waStatus?.exists && (
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ flex: '1 1 140px' }}
+                      onClick={handleDisconnectWa}
+                      disabled={disconnectingWa || generatingQr}
+                    >
+                      {disconnectingWa ? 'Desconectando...' : 'Desconectar'}
+                    </button>
+                  )}
+                </div>
 
                 <hr className="divider" />
 
@@ -749,11 +896,16 @@ function StatusRow({ label, ok, okText, failText }: { label: string; ok: boolean
 
 function extractQr(raw: any): string {
   try {
+    let val = '';
     if (typeof raw === 'string') {
+      if (raw.startsWith('data:image')) return raw;
       const obj = JSON.parse(raw);
-      return obj?.qrcode?.base64 ?? obj?.base64 ?? '';
+      val = obj?.qrcode?.base64 ?? obj?.base64 ?? '';
+    } else {
+      val = raw?.qrcode?.base64 ?? raw?.base64 ?? '';
     }
-    return raw?.qrcode?.base64 ?? raw?.base64 ?? '';
+    if (!val) return '';
+    return val.startsWith('data:image') ? val : `data:image/png;base64,${val}`;
   } catch {
     return '';
   }
